@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title>SVG test</title>
+  </head>
+  <body>
+
+    <script>
+    class Component {
+      constructor(x, y, width, height, scale) {
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+        this.scale = scale;
+
+        this.tw = this.width * scale;
+        this.th = this.height * scale;
+
+        return this;
+      }
+    }
+    class Node extends Component {
+      constructor(x, y, width, height, scale) {
+        super(x, y, width, height, scale);
+
+        this.colors = {
+          background: "#1d1d1d",
+          header: "#8a5794"
+        }
+
+        this.container = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        this.container.setAttribute("width", this.tw + 5);
+        this.container.setAttribute("height", this.th + 5);
+
+        this.shadows = SVGEngine.createShadowFilter(1, 1);
+
+        this.bgRect = new Rectangle(0, 1, this.tw, this.th, true, 4);
+        this.bgRect.setColor(this.colors.background);
+        this.bgRect.setStroke({
+          color: "black",
+          width: 0.5
+        });
+        this.bgRect.setShadow(this.shadows.id);
+
+        this.hRect = new Rectangle(0, 0, this.tw, this.th * 0.20, true, 5);
+        this.hRect.setColor(this.colors.header);
+        this.hRect.setStroke({
+          color: this.colors.background,
+          width: 0.5
+        });
+
+        return this;
+      }
+      createSVGElement() {
+        this.container.innerHTML = "";
+        this.container.appendChild(this.shadows.element);
+        this.container.appendChild(this.bgRect.createSVGElement());
+        this.container.appendChild(this.hRect.createSVGElement());
+        return this.container;
+      }
+    }
+    class Rectangle {
+      constructor(x, y, width, height, rounded=false, radius=0) {
+        this.x = x;
+        this.y = y;
+        this.height = height;
+        this.width = width;
+        this.rounded = rounded;
+
+        this.rx = (radius !== 0) ? radius : 0.3;
+        this.ry = (radius !== 0) ? radius : 0.3;
+
+        this.shadow = null;
+
+        return this;
+      }
+      setColor(color) {
+        this.color = color;
+      }
+      setStroke(opts) {
+        this.stroke = opts.color;
+        this.strokeWidth = opts.width;
+      }
+      setShadow(shadow) {
+        this.shadow = shadow;
+      }
+      createSVGElement() {
+        const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        rect.setAttribute("x", this.x);
+        rect.setAttribute("y", this.y);
+        rect.setAttribute("width", this.width);
+        rect.setAttribute("height", this.height);
+        if (this.color) rect.setAttribute("fill", this.color);
+        if (this.stroke) rect.setAttribute("stroke", this.stroke);
+        if (this.strokeWidth) rect.setAttribute("stroke-width", this.strokeWidth);
+        if (!this.rounded) return rect;
+        rect.setAttribute("rx", this.rx);
+        rect.setAttribute("ry", this.ry);
+        if (this.shadow) rect.setAttribute("filter", "url(#" + this.shadow + ")");
+        return rect;
+      }
+    }
+
+    class SVGEngine {
+      constructor() {
+        this.element = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        this.element.setAttribute("height", window.innerHeight);
+        this.element.setAttribute("width", window.innerWidth);
+        document.body.appendChild(this.element);
+
+        return this;
+      }
+      static createShadowFilter(dx=3, dy=3, x=0, y=0, deviation=2) {
+        const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+
+        const filter = document.createElementNS("http://www.w3.org/2000/svg", "filter");
+        let id = "shadow" + (new Date()).getTime();
+        filter.id = id;
+        filter.setAttribute("x", x);
+        filter.setAttribute("y", y);
+        filter.setAttribute("width", "200%");
+        filter.setAttribute("height", "200%");
+        defs.appendChild(filter);
+
+        const offset = document.createElementNS("http://www.w3.org/2000/svg", "feOffset");
+        offset.setAttribute("dx", dx);
+        offset.setAttribute("dy", dy);
+        offset.setAttribute("in", "SourceAlpha");
+        offset.setAttribute("result", "offset");
+        filter.appendChild(offset);
+
+        const blur = document.createElementNS("http://www.w3.org/2000/svg", "feGaussianBlur");
+        blur.setAttribute("in", "offset");
+        blur.setAttribute("stdDeviation", deviation);
+        blur.setAttribute("result", "blur");
+        filter.appendChild(blur);
+
+        const blend = document.createElementNS("http://www.w3.org/2000/svg", "feBlend");
+        blend.setAttribute("in", "SourceGraphic");
+        blend.setAttribute("in2", "blur");
+        blend.setAttribute("mode", "normal");
+        filter.appendChild(blend);
+
+        return { element: defs, id: id };
+      }
+
+      createPath() {
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("d", "M10 10 L100 100");
+        path.setAttribute("stroke", "black");
+        this.element.appendChild(path);
+      }
+    }
+
+    document.body.style.height = window.innerHeight + "px";
+    document.body.style.width = window.innerWidth + "px";
+
+    const engine = new SVGEngine();
+    //engine.createPath();
+
+    const rect = new Rectangle(120, 120, 50, 50, true);
+    rect.setColor("black");
+    rect.setStroke({
+      color: "black",
+      width: 1
+    });
+    //engine.element.appendChild(rect.createSVGElement());
+
+    const node = new Node(100, 50, 200, 150, 1);
+    engine.element.appendChild(node.createSVGElement());
+    </script>
+  </body>
+</html>
