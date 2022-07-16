@@ -23,6 +23,7 @@
         this.container = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         this.container.setAttribute("x", this.x);
         this.container.setAttribute("y", this.y);
+        this.container.style.overflow = "overlay";
 
         return this;
       }
@@ -40,6 +41,25 @@
         return this.container;
       }
     }
+    class OutputPlugComponent extends Component {
+      static Type = {
+        BOOLEAN: "bool",
+        CONNECTOR: "connect"
+      }
+      constructor(x, y, width, height, scale, type) {
+        super(x, y, width, height, scale);
+
+        this.oCircle = new Circle(20 * this.scale, 0, 8 * this.scale, true);
+        this.oCircle.setColor("white");
+        this.elements.push({ element: this.oCircle, render: (el) => el.createSVGElement() });
+
+        this.oT = new RoundedTriangle(0, -1*this.scale, 0, 1.18 * this.scale);
+        this.oT.setColor("white");
+        this.elements.push({ element: this.oT, render: (el) => el.createSVGElement() });
+
+        return this;
+      }
+    }
     class InputSocketComponent extends Component {
       static Type = {
         BOOLEAN: "bool"
@@ -51,7 +71,7 @@
         this.cCircle.setColor("white");
         this.elements.push({ element: this.cCircle, render: (el) => el.createSVGElement() });
 
-        this.cT = new RoundedTriangle(25*this.scale, -1*this.scale, 0, 1.18 * this.scale);
+        this.cT = new RoundedTriangle(22*this.scale, -1*this.scale, 0, 1.18 * this.scale);
         this.cT.setColor("white");
         this.elements.push({ element: this.cT, render: (el) => el.createSVGElement() });
 
@@ -91,14 +111,58 @@
         this.elements.push({ element: this.hRect, render: (el) => el.createSVGElement() });
 
         this.sockets = [];
+        this.plugs = [];
         this.elements.push({ element: this.sockets, render: (el) => {return el.map(e => e.createSVGElement());} });
+        this.elements.push({ element: this.plugs, render: (el) => {return el.map(e => e.createSVGElement());} });
 
         return this;
+      }
+      setName(name) {
+        this.name = name;
+        this.nText = new Text(5, 20, name);
+        this.nText.setColor("white");
+        console.log(this.nText);
+        this.elements.push({ element: this.nText, render: (el) => el.createSVGElement() });
       }
       addSocket(type) {
         const socket = new InputSocketComponent((-8 * this.scale), (this.th * 0.2) + 25*this.scale + (36 * this.sockets.length) * this.scale, 16, 34, this.scale, type);
         this.sockets.push(socket);
         return this.sockets;
+      }
+      addPlug(type) {
+        const plug = new OutputPlugComponent(this.tw - (36 - 8), (this.th * 0.2) + 25*this.scale + (36 * this.plugs.length) * this.scale, 16, 34, this.scale, type);
+        this.plugs.push(plug);
+        return this.plug;
+      }
+    }
+    class ConditionNode extends Node {
+      constructor(x, y, width, height, scale) {
+        super(x, y, width, height, scale);
+
+        this.setName("If");
+
+        this.addSocket(InputSocketComponent.Type.BOOLEAN);
+        this.addPlug(OutputPlugComponent.Type.CONNECTOR);
+
+        return this;
+      }
+    }
+    class Text {
+      constructor(x, y, text) {
+        this.x = x;
+        this.y = y;
+        this.txt = text;
+      }
+      setColor(color) {
+        this.color = color;
+      }
+      createSVGElement() {
+        const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        text.innerHTML = this.txt;
+        text.setAttribute("x", this.x);
+        text.setAttribute("y", this.y);
+        if (this.color) text.setAttribute("fill", this.color);
+        return text;
       }
     }
     class RoundedTriangle {
@@ -383,9 +447,8 @@
     });
     //engine.element.appendChild(rect.createSVGElement());
 
-    const node = new Node(100, 100, 200, 150, 1);
-    node.addSocket(InputSocketComponent.Type.BOOLEAN)
-    engine.element.appendChild(node.createSVGElement());
+    const condition = new ConditionNode(100, 100, 200, 150, 1);
+    engine.element.appendChild(condition.createSVGElement());
     </script>
   </body>
 </html>
