@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <title>SVG test</title>
   </head>
-  <body>
+  <body style="padding: 0; margin: 0">
 
     <script>
     class Component {
@@ -18,6 +18,47 @@
         this.tw = this.width * scale;
         this.th = this.height * scale;
 
+        this.elements = [];
+
+        this.container = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        this.container.setAttribute("x", this.x);
+        this.container.setAttribute("y", this.y);
+
+        return this;
+      }
+
+      createSVGElement() {
+        this.container.innerHTML = "";
+        this.elements.forEach((elem) => {
+          const rendered = elem.render(elem.element);
+          if (Array.isArray(rendered)) {
+            this.container.append(...rendered);
+          } else {
+            this.container.append(rendered);
+          }
+        });
+        return this.container;
+      }
+    }
+    class InputSocketComponent extends Component {
+      static Type = {
+        BOOLEAN: "bool"
+      }
+      constructor(x, y, width, height, scale, type) {
+        super(x, y, width, height, scale);
+
+        this.cCircle = new Circle(0, 0, 8 * this.scale, true);
+        this.cCircle.setColor("white");
+        this.elements.push({ element: this.cCircle, render: (el) => el.createSVGElement() });
+
+        this.cT = new Triangle(20, 1, 14, 14, 90, true);
+        this.cT.setColor("white");
+        this.cT.setStroke({
+          color: "white",
+          width: 2
+        });
+        //this.elements.push({ element: this.cT, render: (el) => el.createSVGElement() });
+
         return this;
       }
     }
@@ -30,11 +71,8 @@
           header: "#8a5794"
         }
 
-        this.container = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        this.container.setAttribute("width", this.tw + 5);
-        this.container.setAttribute("height", this.th + 5);
-
         this.shadows = SVGEngine.createShadowFilter(1, 1);
+        this.elements.push({ element: this.shadows.element, render: (el) => el });
 
         this.bgRect = new Rectangle(0, 1, this.tw, this.th, true, 4);
         this.bgRect.setColor(this.colors.background);
@@ -43,6 +81,7 @@
           width: 0.5
         });
         this.bgRect.setShadow(this.shadows.id);
+        this.elements.push({ element: this.bgRect, render: (el) => el.createSVGElement() });
 
         this.hRect = new Rectangle(0, 0, this.tw, this.th * 0.20, true, 5);
         this.hRect.setColor(this.colors.header);
@@ -50,15 +89,89 @@
           color: this.colors.background,
           width: 0.5
         });
+        this.clip = this.hRect.createClipPath(0);
+        this.hRect.setClipPath(this.clip.id);
+        this.elements.push({ element: this.clip, render: (el) => el.element });
+        this.elements.push({ element: this.hRect, render: (el) => el.createSVGElement() });
+
+        this.sockets = [];
+        this.elements.push({ element: this.sockets, render: (el) => {return el.map(e => e.createSVGElement());} });
+
+        return this;
+      }
+      addSocket(type) {
+        const socket = new InputSocketComponent((-8 * this.scale), this.th * 0.25, 16, 34, this.scale, type);
+        this.sockets.push(socket);
+        return this.sockets;
+      }
+    }
+    class RoundedTriangle {
+      constructor() {
+        this.d = "m650.7 214.9c1.3 0.7 1.3 2.7 0 3.4l-6.6 3.8c-1.3 0.8-3-0.2-3-1.7v-7.6c0-1.5 1.7-2.5 3-1.7z";
 
         return this;
       }
       createSVGElement() {
-        this.container.innerHTML = "";
-        this.container.appendChild(this.shadows.element);
-        this.container.appendChild(this.bgRect.createSVGElement());
-        this.container.appendChild(this.hRect.createSVGElement());
-        return this.container;
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("d", this.d);
+        return path;
+      }
+    }
+    class Triangle {
+      constructor(x, y, width, height, rot, rounded) {
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+        this.rot = rot;
+        this.rounded = rounded;
+
+        return this;
+      }
+      setColor(color) {
+        this.color = color;
+      }
+      setStroke(opts) {
+        this.stroke = opts.stroke;
+        this.strokeWidth = opts.width;
+      }
+      createSVGElement() {
+        const triangle = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+        let x = this.x;
+        let y = this.y;
+        triangle.setAttribute("points", x + "," + (y + this.height) + " " + (x + this.width) + "," + (y + this.height) + " " + (x + (this.width / 2)) + "," + y);
+        triangle.setAttribute("fill", this.color);
+        if (this.stroke) triangle.setAttribute("stroke", this.stroke);
+        if (this.strokeWidth) triangle.setAttribute("stroke-width", this.strokeWidth);
+        if (this.rot) triangle.setAttribute("transform", "rotate(" + this.rot + "," + (x + this.width / 2) + "," + (y + this.height/2) + ")");
+        if (this.rounded) triangle.setAttribute("stroke-linejoin", "round");
+        return triangle;
+      }
+    }
+    class Circle {
+      constructor(x, y, radius, cornerCoords) {
+        this.x = (cornerCoords) ? x + radius : x;
+        this.y = (cornerCoords) ? y + radius : y;
+        this.r = radius;
+
+        return this;
+      }
+      setColor(color) {
+        this.color = color;
+      }
+      setStroke(opts) {
+        this.stroke = opts.stroke;
+        this.strokeWidth = opts.width;
+      }
+      createSVGElement() {
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("cx", this.x);
+        circle.setAttribute("cy", this.y);
+        circle.setAttribute("r", this.r);
+        if (this.stroke) circle.setAttribute("stroke", this.stroke);
+        if (this.strokeWidth) circle.setAttribute("stroke-width", this.strokeWidth);
+        if (this.color) circle.setAttribute("fill", this.color);
+        return circle;
       }
     }
     class Rectangle {
@@ -69,10 +182,14 @@
         this.width = width;
         this.rounded = rounded;
 
+        this.radius = radius;
         this.rx = (radius !== 0) ? radius : 0.3;
         this.ry = (radius !== 0) ? radius : 0.3;
 
         this.shadow = null;
+
+        this.eventElem = document.createElement("span");
+        this.clickEvent = new Event("click");
 
         return this;
       }
@@ -86,6 +203,31 @@
       setShadow(shadow) {
         this.shadow = shadow;
       }
+      setClipPath(path) {
+        this.clipPath = path;
+      }
+      addEventListener(event, cb) {
+        return this.eventElem.addEventListener(event, cb);
+      }
+      createClipPath(yOffset) {
+        const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "clipPath");
+        let id = "rounded" + (new Date()).getTime();
+        path.id = id;
+        defs.appendChild(path);
+
+        const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        rect.setAttribute("x", 0);
+        rect.setAttribute("y", yOffset);
+        rect.setAttribute("width", this.width);
+        rect.setAttribute("height", this.height + this.radius);
+        rect.setAttribute("rx", this.radius);
+        rect.setAttribute("ry", this.radius);
+        path.appendChild(rect);
+
+        return { element: defs, id: id };
+      }
       createSVGElement() {
         const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
         rect.setAttribute("x", this.x);
@@ -95,11 +237,65 @@
         if (this.color) rect.setAttribute("fill", this.color);
         if (this.stroke) rect.setAttribute("stroke", this.stroke);
         if (this.strokeWidth) rect.setAttribute("stroke-width", this.strokeWidth);
+        if (this.shadow) rect.setAttribute("filter", "url(#" + this.shadow + ")");
+        rect.onclick = () => {
+          this.eventElem.dispatchEvent(this.clickEvent);
+        }
         if (!this.rounded) return rect;
+        if (this.clipPath) {
+          rect.setAttribute("clip-path", "url(#" + this.clipPath + ")");
+          return rect;
+        }
         rect.setAttribute("rx", this.rx);
         rect.setAttribute("ry", this.ry);
-        if (this.shadow) rect.setAttribute("filter", "url(#" + this.shadow + ")");
         return rect;
+      }
+    }
+    class RasterBackground {
+      constructor(x, y, width, height, zoom) {
+        this.colors = {
+          background: "#141414",
+          dot: "#1c1c1c"
+        }
+
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+        this.zoom = zoom;
+
+        this.container = document.createElementNS("http://www.w3.org/2000/svg", "g");
+
+        this.bg = new Rectangle(0, 0, this.width, this.height);
+        this.bg.setColor(this.colors.background);
+
+        this.baseDist = this.width / 23;
+        this.dotRad = 5;
+
+        return this;
+      }
+      createDots() {
+        this.distance = this.baseDist * this.zoom;
+        this.rad = this.dotRad * this.zoom;
+
+        this.dots = [];
+        this.columns = Math.floor(this.width / this.distance);
+        this.rows = Math.floor(this.height / this.distance);
+
+        for (let i = 0; i < this.columns; i++) {
+          for (let j = 0; j < this.rows; j++) {
+            const circle = new Circle(this.distance * (i + 1), this.distance * (j + 1), this.rad, false);
+            circle.setColor(this.colors.dot);
+            this.dots.push(circle);
+          }
+        }
+      }
+      createSVGElement() {
+        this.container.innerHTML = "";
+        this.createDots();
+        this.container.append(this.bg.createSVGElement());
+        this.container.append(...this.dots.map(el => el.createSVGElement()));
+        return this.container;
       }
     }
 
@@ -109,6 +305,9 @@
         this.element.setAttribute("height", window.innerHeight);
         this.element.setAttribute("width", window.innerWidth);
         document.body.appendChild(this.element);
+
+        this.width = window.innerWidth;
+        this.height = window.innerHeight;
 
         return this;
       }
@@ -158,6 +357,9 @@
     document.body.style.width = window.innerWidth + "px";
 
     const engine = new SVGEngine();
+
+    const bgrd = new RasterBackground(0, 0, engine.width, engine.height, 1);
+    engine.element.appendChild(bgrd.createSVGElement());
     //engine.createPath();
 
     const rect = new Rectangle(120, 120, 50, 50, true);
@@ -168,7 +370,8 @@
     });
     //engine.element.appendChild(rect.createSVGElement());
 
-    const node = new Node(100, 50, 200, 150, 1);
+    const node = new Node(100, 100, 200, 150, 1);
+    node.addSocket(InputSocketComponent.Type.BOOLEAN)
     engine.element.appendChild(node.createSVGElement());
     </script>
   </body>
