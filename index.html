@@ -51,13 +51,9 @@
         this.cCircle.setColor("white");
         this.elements.push({ element: this.cCircle, render: (el) => el.createSVGElement() });
 
-        this.cT = new Triangle(20, 1, 14, 14, 90, true);
+        this.cT = new RoundedTriangle(25*this.scale, -1*this.scale, 0, 1.18 * this.scale);
         this.cT.setColor("white");
-        this.cT.setStroke({
-          color: "white",
-          width: 2
-        });
-        //this.elements.push({ element: this.cT, render: (el) => el.createSVGElement() });
+        this.elements.push({ element: this.cT, render: (el) => el.createSVGElement() });
 
         return this;
       }
@@ -100,20 +96,37 @@
         return this;
       }
       addSocket(type) {
-        const socket = new InputSocketComponent((-8 * this.scale), this.th * 0.25, 16, 34, this.scale, type);
+        const socket = new InputSocketComponent((-8 * this.scale), (this.th * 0.2) + 25*this.scale + (36 * this.sockets.length) * this.scale, 16, 34, this.scale, type);
         this.sockets.push(socket);
         return this.sockets;
       }
     }
     class RoundedTriangle {
-      constructor() {
-        this.d = "m650.7 214.9c1.3 0.7 1.3 2.7 0 3.4l-6.6 3.8c-1.3 0.8-3-0.2-3-1.7v-7.6c0-1.5 1.7-2.5 3-1.7z";
+      constructor(x, y, rot, scale) {
+        this.d = "m" + (x + 10) + " " + (y + 6) + "c1.3 0.7 1.3 2.7 0 3.4l-6.6 3.8c-1.3 0.8-3-0.2-3-1.7v-7.6c0-1.5 1.7-2.5 3-1.7z";
+        this.x = x;
+        this.y = y;
+        this.rot = rot;
+        this.scale = scale;
 
         return this;
+      }
+      setColor(color) {
+        this.color = color;
+      }
+      setStroke(opts) {
+        this.stroke = opts.stroke;
+        this.strokeWidth = opts.width;
       }
       createSVGElement() {
         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         path.setAttribute("d", this.d);
+        if (this.color) path.setAttribute("fill", this.color);
+        if (this.stroke) path.setAttribute("stroke", this.stroke);
+        if (this.strokeWidth) path.setAttribute("stroke-width", this.strokeWidth);
+        if (this.rot || this.scale) path.setAttribute("transform", (this.scale) ? "scale(" + this.scale + ")" : " " + (this.rot) ? path.setAttribute("transform", "rotate(" + this.rot + "," + (this.x + 10)/2 + "," + (this.y + 6)/2 + ")") : "");
+        if (!this.rot) return path;
+
         return path;
       }
     }
@@ -140,7 +153,7 @@
         let x = this.x;
         let y = this.y;
         triangle.setAttribute("points", x + "," + (y + this.height) + " " + (x + this.width) + "," + (y + this.height) + " " + (x + (this.width / 2)) + "," + y);
-        triangle.setAttribute("fill", this.color);
+        if (this.color) triangle.setAttribute("fill", this.color);
         if (this.stroke) triangle.setAttribute("stroke", this.stroke);
         if (this.strokeWidth) triangle.setAttribute("stroke-width", this.strokeWidth);
         if (this.rot) triangle.setAttribute("transform", "rotate(" + this.rot + "," + (x + this.width / 2) + "," + (y + this.height/2) + ")");
