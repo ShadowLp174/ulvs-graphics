@@ -14,6 +14,7 @@
         this.width = width;
         this.height = height;
         this.scale = scale;
+        this.isComponent = true;
 
         this.tw = this.width * scale;
         this.th = this.height * scale;
@@ -28,6 +29,13 @@
         return this;
       }
 
+      setScale(scale) {
+        this.scale = scale;
+        this.elements.forEach((item, i) => {
+          if (!item.element.isComponent) return;
+          item.element.setScale(this.scale);
+        });
+      }
       createSVGElement() {
         this.container.innerHTML = "";
         this.elements.forEach((elem) => {
@@ -124,13 +132,17 @@
         console.log(this.nText);
         this.elements.push({ element: this.nText, render: (el) => el.createSVGElement() });
       }
+      setClass(c) {
+        this.class = c;
+        //this.cText = new Text();
+      }
       addSocket(type) {
         const socket = new InputSocketComponent((-8 * this.scale), (this.th * 0.2) + 25*this.scale + (36 * this.sockets.length) * this.scale, 16, 34, this.scale, type);
         this.sockets.push(socket);
         return this.sockets;
       }
       addPlug(type) {
-        const plug = new OutputPlugComponent(this.tw - (36 - 8), (this.th * 0.2) + 25*this.scale + (36 * this.plugs.length) * this.scale, 16, 34, this.scale, type);
+        const plug = new OutputPlugComponent(this.tw - (36 - 8) * this.scale, (this.th * 0.2) + 25*this.scale + (36 * this.plugs.length) * this.scale, 16, 34, this.scale, type);
         this.plugs.push(plug);
         return this.plug;
       }
@@ -152,6 +164,10 @@
         this.x = x;
         this.y = y;
         this.txt = text;
+        this.isComponent = true;
+      }
+      static measureText(text) {
+
       }
       setColor(color) {
         this.color = color;
@@ -164,6 +180,9 @@
         if (this.color) text.setAttribute("fill", this.color);
         return text;
       }
+      setScale(scale) {
+
+      }
     }
     class RoundedTriangle {
       constructor(x, y, rot, scale) {
@@ -172,6 +191,7 @@
         this.y = y;
         this.rot = rot;
         this.scale = scale;
+        this.isComponent = true;
 
         return this;
       }
@@ -184,6 +204,7 @@
       }
       createSVGElement() {
         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        this.elem = path;
         path.setAttribute("d", this.d);
         if (this.color) path.setAttribute("fill", this.color);
         if (this.stroke) path.setAttribute("stroke", this.stroke);
@@ -192,6 +213,10 @@
         if (!this.rot) return path;
 
         return path;
+      }
+      setScale(scale) {
+        this.scale = scale;
+        this.elem.setAttribute("transform", (this.scale) ? "scale(" + this.scale + ")" : " " + (this.rot) ? path.setAttribute("transform", "rotate(" + this.rot + "," + (this.x + 10)/2 + "," + (this.y + 6)/2 + ")") : "");
       }
     }
     class Triangle {
@@ -202,6 +227,7 @@
         this.height = height;
         this.rot = rot;
         this.rounded = rounded;
+        this.isComponent = true;
 
         return this;
       }
@@ -224,12 +250,16 @@
         if (this.rounded) triangle.setAttribute("stroke-linejoin", "round");
         return triangle;
       }
+      setScale() {
+        console.error("TODO!");
+      }
     }
     class Circle {
       constructor(x, y, radius, cornerCoords) {
         this.x = (cornerCoords) ? x + radius : x;
         this.y = (cornerCoords) ? y + radius : y;
         this.r = radius;
+        this.isComponent = true;
 
         return this;
       }
@@ -240,15 +270,27 @@
         this.stroke = opts.stroke;
         this.strokeWidth = opts.width;
       }
-      createSVGElement() {
-        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      updateAttributes() {
+        const circle = this.elem;
         circle.setAttribute("cx", this.x);
         circle.setAttribute("cy", this.y);
         circle.setAttribute("r", this.r);
         if (this.stroke) circle.setAttribute("stroke", this.stroke);
         if (this.strokeWidth) circle.setAttribute("stroke-width", this.strokeWidth);
         if (this.color) circle.setAttribute("fill", this.color);
+      }
+      createSVGElement() {
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        this.elem = circle;
+        this.updateAttributes();
         return circle;
+      }
+      setScale(scale) {
+        this.scale = scale;
+        this.x = this.x * this.scale;
+        this.y = this.y * this.scale;
+        this.r = this.r * this.scale;
+        this.updateAttributes();
       }
     }
     class Rectangle {
@@ -258,6 +300,7 @@
         this.height = height;
         this.width = width;
         this.rounded = rounded;
+        this.isComponent = true;
 
         this.radius = radius;
         this.rx = (radius !== 0) ? radius : 0.3;
@@ -305,8 +348,8 @@
 
         return { element: defs, id: id };
       }
-      createSVGElement() {
-        const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      updateAttributes() {
+        const rect = this.elem;
         rect.setAttribute("x", this.x);
         rect.setAttribute("y", this.y);
         rect.setAttribute("width", this.width);
@@ -315,9 +358,6 @@
         if (this.stroke) rect.setAttribute("stroke", this.stroke);
         if (this.strokeWidth) rect.setAttribute("stroke-width", this.strokeWidth);
         if (this.shadow) rect.setAttribute("filter", "url(#" + this.shadow + ")");
-        rect.onclick = () => {
-          this.eventElem.dispatchEvent(this.clickEvent);
-        }
         if (!this.rounded) return rect;
         if (this.clipPath) {
           rect.setAttribute("clip-path", "url(#" + this.clipPath + ")");
@@ -325,7 +365,25 @@
         }
         rect.setAttribute("rx", this.rx);
         rect.setAttribute("ry", this.ry);
+      }
+      createSVGElement() {
+        const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        this.elem = rect;
+        this.updateAttributes();
+        rect.onclick = () => {
+          this.eventElem.dispatchEvent(this.clickEvent);
+        }
         return rect;
+      }
+      setScale(scale) {
+        this.scale = scale;
+        this.x = this.x * scale;
+        this.y = this.y * scale;
+        this.height = this.height * scale;
+        this.width = this.width * scale;
+        this.radius = this.radius = scale;
+        this.rx = (this.radius !== 0) ? this.radius : 0.3;
+        this.ry = (this.radius !== 0) ? this.radius : 0.3;
       }
     }
     class RasterBackground {
@@ -374,6 +432,9 @@
         this.container.append(...this.dots.map(el => el.createSVGElement()));
         return this.container;
       }
+      setScale() {
+
+      }
     }
 
     class SVGEngine {
@@ -385,6 +446,9 @@
 
         this.width = window.innerWidth;
         this.height = window.innerHeight;
+
+        this.components = [];
+        this.scale = 1;
 
         return this;
       }
@@ -421,7 +485,20 @@
 
         return { element: defs, id: id };
       }
-
+      zoomOut() {
+        this.components.forEach((c, i) => {
+          c.component.setScale(0.5);
+        });
+      }
+      zoomIn() {
+        this.components.forEach((c, i) => {
+          c.component.setScale(1.5);
+        });
+      }
+      addComponent(c, render=(el)=>el.createSVGElement()) {
+        this.components.push({ component: c, render: render});
+        this.element.appendChild(render(c));
+      }
       createPath() {
         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         path.setAttribute("d", "M10 10 L100 100");
@@ -436,7 +513,8 @@
     const engine = new SVGEngine();
 
     const bgrd = new RasterBackground(0, 0, engine.width, engine.height, 1);
-    engine.element.appendChild(bgrd.createSVGElement());
+    engine.addComponent(bgrd);
+    //engine.element.appendChild(bgrd.createSVGElement());
     //engine.createPath();
 
     const rect = new Rectangle(120, 120, 50, 50, true);
@@ -448,7 +526,21 @@
     //engine.element.appendChild(rect.createSVGElement());
 
     const condition = new ConditionNode(100, 100, 200, 150, 1);
-    engine.element.appendChild(condition.createSVGElement());
+    engine.addComponent(condition);
+    //engine.element.appendChild(condition.createSVGElement());
+
+    document.body.style.overflow = "hidden";
+
+    window.addEventListener("mousewheel", (e) => {
+      //if (!e.ctrlKey) return;
+      if (e.deltaY > 0) {
+        // zoom out
+        engine.zoomOut();
+      } else {
+        // zoom in
+        engine.zoomIn();
+      }
+    });
     </script>
   </body>
 </html>
