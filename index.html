@@ -377,13 +377,12 @@
       }
       setScale(scale) {
         this.scale = scale;
-        this.x = this.x * scale;
-        this.y = this.y * scale;
         this.height = this.height * scale;
         this.width = this.width * scale;
         this.radius = this.radius = scale;
         this.rx = (this.radius !== 0) ? this.radius : 0.3;
         this.ry = (this.radius !== 0) ? this.radius : 0.3;
+        this.updateAttributes();
       }
     }
     class RasterBackground {
@@ -529,10 +528,13 @@
     engine.addComponent(condition);
     //engine.element.appendChild(condition.createSVGElement());
 
+    const r = new Rectangle(150, 150, 50, 50, true);
+    engine.element.appendChild(r.createSVGElement());
+
     document.body.style.overflow = "hidden";
 
     window.addEventListener("mousewheel", (e) => {
-      //if (!e.ctrlKey) return;
+      if (!e.ctrlKey) return;
       if (e.deltaY > 0) {
         // zoom out
         engine.zoomOut();
