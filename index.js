@@ -31,21 +31,19 @@ class Component {
     this.tw = this.width * this.scale; // true width: the width when the proper scale is applied
     this.th = this.height * this.scale; // same as tw but with height
 
-    if (this.scaleCoords) { // do the same for coords like for height if scalable
+    /*if (this.scaleCoords) { // do the same for coords like for height if scalable
       this.x = this.ox * this.scale;
       this.y = this.oy * this.scale;
     } else {
       this.x = this.ox;
       this.y = this.oy;
-    }
+    }*/
 
     this.container.setAttribute("x", this.x);
     this.container.setAttribute("y", this.y);
   }
-  update() {
-    this.updateAttributes();
+  updateChildren() {
     this.elements.forEach((elem) => {
-      console.log(elem);
       (!elem.update) ? elem.element.update(this) : elem.update(elem.element, this);
     });
   }
@@ -53,13 +51,10 @@ class Component {
   setPosition(pos) {
     this.x = pos.x;
     this.y = pos.y;
-    this.update();
+    this.updateAttributes();
+    return pos;
   }
-  setScale(scale) {
-    this.scale = scale;
-    this.update();
-  }
-  createSVGElement() {
+  createSVGElement() { // create the whole svg element and return it
     this.container.innerHTML = "";
     this.elements.forEach((elem) => { // loop through each sub-element
       const rendered = (!elem.render) ? elem.createSVGElement(elem.element) : elem.render(elem.element); // and call the render function
@@ -92,6 +87,23 @@ class OutputPlugComponent extends Component {
 
     return this;
   }
+  setSubComponentAttributes() { // update sub-elements
+    this.oCircle.setPosition({
+      x: 20 * this.scale,
+      y: 0
+    });
+    this.oT.setPosition({
+      x: 0,
+      y: -1 * this.scale
+    });
+    this.oCircle.radius = 8 * this.scale;
+    this.oT.setScale(1.18 * this.scale);
+  }
+  setScale(s) {
+    this.scale = s;
+    super.updateAttributes();
+    this.setSubComponentAttributes();
+  }
 }
 class InputSocketComponent extends Component {
   static Type = {
@@ -111,6 +123,19 @@ class InputSocketComponent extends Component {
     this.elements.push({ element: this.cT, render: (el) => el.createSVGElement() });
 
     return this;
+  }
+  setSubComponentAttributes() { // update sub-elements
+    this.cT.setPosition({
+      x: 22 * this.scale,
+      y: -1 * this.scale
+    });
+    this.cCircle.radius = 8 * this.scale;
+    this.cT.setScale(1.18 * this.scale);
+  }
+  setScale(s) {
+    this.scale = s;
+    super.updateAttributes();
+    this.setSubComponentAttributes();
   }
 }
 class Node extends Component {
@@ -157,6 +182,30 @@ class Node extends Component {
     this.elements.forEach((e, i) => {
 
     });
+  }
+  setSubComponentAttributes() {
+    this.bgRect.setScale(this.scale);
+    this.hRect.setScale(this.scale);
+
+    this.sockets.forEach((socket, i) => {
+      socket.setPosition({
+        x: -8 * this.scale,
+        y: (this.th * 0.2) + 25 * this.scale + (36 * i) * this.scale
+      });
+      socket.setScale(this.scale);
+    });
+    this.plugs.forEach((plug, i) => {
+      plug.setPosition({
+        x: this.tw - (36 - 8) * this.scale,
+        y: (this.th * 0.2) + 25*this.scale + (36 * i) * this.scale
+      })
+      plug.setScale(this.scale);
+    });
+  }
+  setScale(s) {
+    this.scale = s;
+    super.updateAttributes();
+    this.setSubComponentAttributes();
   }
   setName(name) {
     this.name = name;
@@ -219,12 +268,14 @@ class Text {
 }
 class RoundedTriangle {
   constructor(x, y, rot, scale) {
-    this.d = "m" + (x + 10) + " " + (y + 6) + "c1.3 0.7 1.3 2.7 0 3.4l-6.6 3.8c-1.3 0.8-3-0.2-3-1.7v-7.6c0-1.5 1.7-2.5 3-1.7z";
     this.x = x;
     this.y = y;
     this.rot = rot;
     this.scale = scale;
     this.isComponent = true;
+
+    this.container = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    this.updateAttributes();
 
     return this;
   }
@@ -232,26 +283,34 @@ class RoundedTriangle {
     this.scale = parent.scale;
 
   }
+  setScale(s) {
+    this.scale = s;
+    this.updateAttributes();
+  }
+  setPosition(pos) {
+    this.x = pos.x;
+    this.y = pos.y;
+    this.updateAttributes();
+  }
   setColor(color) {
     this.color = color;
+    this.updateAttributes();
   }
   setStroke(opts) {
     this.stroke = opts.stroke;
     this.strokeWidth = opts.width;
+    this.updateAttributes();
   }
   updateAttributes() {
-    const path = this.elem;
+    const path = this.container;
+    path.setAttribute("d", "m" + (this.x + 10 * this.scale) + " " + (this.y + 6*this.scale) + "c1.3 0.7 1.3 2.7 0 3.4l-6.6 3.8c-1.3 0.8-3-0.2-3-1.7v-7.6c0-1.5 1.7-2.5 3-1.7z");
     if (this.color) path.setAttribute("fill", this.color);
     if (this.stroke) path.setAttribute("stroke", this.stroke);
     if (this.strokeWidth) path.setAttribute("stroke-width", this.strokeWidth);
     if (this.rot || this.scale) path.setAttribute("transform", (this.scale) ? "scale(" + this.scale + ")" : " " + (this.rot) ? path.setAttribute("transform", "rotate(" + this.rot + "," + (this.x + 10)/2 + "," + (this.y + 6)/2 + ")") : "");
   }
   createSVGElement() {
-    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    this.elem = path;
-    path.setAttribute("d", this.d);
-    this.updateAttributes();
-    return path;
+    return this.container;
   }
   setScale(scale) {
     this.scale = scale;
@@ -297,24 +356,47 @@ class Circle {
   constructor(x, y, radius, cornerCoords) {
     this.x = (cornerCoords) ? x + radius : x;
     this.y = (cornerCoords) ? y + radius : y;
+    this.ox = x; // original x and y
+    this.oy = y;
     this.r = radius;
+    this.cornerCoords = cornerCoords;
     this.isComponent = true;
+
+    this.container = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    this.updateAttributes();
 
     return this;
   }
+  set radius(r) {
+    this.r = r;
+    if (!this.cornerCoords) return this.updateAttributes();
+    this.x = this.ox + r;
+    this.y = this.oy + r;
+    return this.updateAttributes();
+  }
+  get radius() {
+    return this.r;
+  }
+  setPosition(pos) {
+    this.x = (this.cornerCoords) ? pos.x + this.r : pos.x;
+    this.y = (this.cornerCoords) ? pos.y + this.r : pos.y;
+    this.updateAttributes();
+  }
   setColor(color) {
     this.color = color;
+    this.updateAttributes();
   }
   setStroke(opts) {
     this.stroke = opts.stroke;
     this.strokeWidth = opts.width;
+    this.updateAttributes();
   }
   update(parent) {
     this.scale = parent.scale;
     this.updateAttributes();
   }
   updateAttributes() {
-    const circle = this.elem;
+    const circle = this.container;
     circle.setAttribute("cx", this.x);
     circle.setAttribute("cy", this.y);
     circle.setAttribute("r", this.r);
@@ -323,17 +405,7 @@ class Circle {
     if (this.color) circle.setAttribute("fill", this.color);
   }
   createSVGElement() {
-    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    this.elem = circle;
-    this.updateAttributes();
-    return circle;
-  }
-  setScale(scale) {
-    this.scale = scale;
-    this.x = this.x * this.scale;
-    this.y = this.y * this.scale;
-    this.r = this.r * this.scale;
-    this.updateAttributes();
+    return this.container;
   }
 }
 class Rectangle {
@@ -418,13 +490,27 @@ class Rectangle {
     }
     return rect;
   }
+  updateClip() {
+    const e = document.querySelector("#" + this.clipPath); // get the clipPath element
+    e.setAttribute("width", this.width);
+    e.setAttribute("height", this.height + this.rx);
+
+    const rect = e.children[0];
+    rect.setAttribute("rx", this.rx);
+    rect.setAttribute("ry", this.ry);
+    rect.setAttribute("width", this.width);
+    rect.setAttribute("height", this.height + this.rx);
+  }
   setScale(scale) {
     this.scale = scale;
     this.height = this.height * scale;
     this.width = this.width * scale;
-    this.radius = this.radius = scale;
+    this.radius = this.radius * scale;
     this.rx = (this.radius !== 0) ? this.radius : 0.3;
     this.ry = (this.radius !== 0) ? this.radius : 0.3;
+    if (this.clipPath) {
+      this.updateClip();
+    }
     this.updateAttributes();
   }
 }
@@ -571,8 +657,8 @@ const condition = new ConditionNode(100, 100, 200, 150, 1);
 engine.addComponent(condition);
 //engine.element.appendChild(condition.createSVGElement());
 
-const plug = new InputSocketComponent(300, 300, 16, 34, 1, InputSocketComponent.Type.BOOLEAN);
-engine.element.appendChild(plug.createSVGElement());
+//const plug = new InputSocketComponent(300, 300, 16, 34, 1, InputSocketComponent.Type.BOOLEAN);
+//engine.element.appendChild(plug.createSVGElement());
 
 const r = new Rectangle(150, 150, 50, 50, true);
 //engine.element.appendChild(r.createSVGElement());
