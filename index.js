@@ -81,7 +81,7 @@ class OutputPlugComponent extends Component {
     this.oCircle.setColor("white");
     this.elements.push({ element: this.oCircle, render: (el) => el.createSVGElement() });
 
-    this.oT = new RoundedTriangle(0, -1*this.scale, 0, 1.18 * this.scale); // the white triangle
+    this.oT = new RoundedTriangleComponent(0, -1*this.scale, 90, 1 * this.scale); // the white triangle
     this.oT.setColor("white");
     this.elements.push({ element: this.oT, render: (el) => el.createSVGElement() });
 
@@ -97,7 +97,7 @@ class OutputPlugComponent extends Component {
       y: -1 * this.scale
     });
     this.oCircle.radius = 8 * this.scale;
-    this.oT.setScale(1.18 * this.scale);
+    this.oT.setScale(1 * this.scale);
   }
   setScale(s) {
     this.scale = s;
@@ -118,7 +118,7 @@ class InputSocketComponent extends Component {
     this.cCircle.setColor("white");
     this.elements.push({ element: this.cCircle, render: (el) => el.createSVGElement() });
 
-    this.cT = new RoundedTriangle(22*this.scale, -1*this.scale, 0, 1.18 * this.scale);
+    this.cT = new RoundedTriangleComponent(22*this.scale, -1*this.scale, 90, 1 * this.scale);
     this.cT.setColor("white");
     this.elements.push({ element: this.cT, render: (el) => el.createSVGElement() });
 
@@ -130,7 +130,7 @@ class InputSocketComponent extends Component {
       y: -1 * this.scale
     });
     this.cCircle.radius = 8 * this.scale;
-    this.cT.setScale(1.18 * this.scale);
+    this.cT.setScale(1 * this.scale);
   }
   setScale(s) {
     this.scale = s;
@@ -265,57 +265,6 @@ class Text {
   /*setScale(scale) { // TODO:
 
   }*/
-}
-class RoundedTriangle {
-  constructor(x, y, rot, scale) {
-    this.x = x;
-    this.y = y;
-    this.rot = rot;
-    this.scale = scale;
-    this.isComponent = true;
-
-    this.container = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    this.updateAttributes();
-
-    return this;
-  }
-  update(parent) {
-    this.scale = parent.scale;
-
-  }
-  setScale(s) {
-    this.scale = s;
-    this.updateAttributes();
-  }
-  setPosition(pos) {
-    this.x = pos.x;
-    this.y = pos.y;
-    this.updateAttributes();
-  }
-  setColor(color) {
-    this.color = color;
-    this.updateAttributes();
-  }
-  setStroke(opts) {
-    this.stroke = opts.stroke;
-    this.strokeWidth = opts.width;
-    this.updateAttributes();
-  }
-  updateAttributes() {
-    const path = this.container;
-    path.setAttribute("d", "m" + (this.x + 10 * this.scale) + " " + (this.y + 6*this.scale) + "c1.3 0.7 1.3 2.7 0 3.4l-6.6 3.8c-1.3 0.8-3-0.2-3-1.7v-7.6c0-1.5 1.7-2.5 3-1.7z");
-    if (this.color) path.setAttribute("fill", this.color);
-    if (this.stroke) path.setAttribute("stroke", this.stroke);
-    if (this.strokeWidth) path.setAttribute("stroke-width", this.strokeWidth);
-    if (this.rot || this.scale) path.setAttribute("transform", (this.scale) ? "scale(" + this.scale + ")" : " " + (this.rot) ? path.setAttribute("transform", "rotate(" + this.rot + "," + (this.x + 10)/2 + "," + (this.y + 6)/2 + ")") : "");
-  }
-  createSVGElement() {
-    return this.container;
-  }
-  setScale(scale) {
-    this.scale = scale;
-    this.updateAttributes();
-  }
 }
 class Triangle {
   constructor(x, y, width, height, rot, rounded) {
@@ -634,93 +583,78 @@ class SVGEngine {
     this.element.appendChild(path);
   }
 }
-
-class Path {
-  constructor() {
-    this.d = "";
-    this.path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    this.path.setAttribute("stroke", "white");
-
-    return this;
-  }
-
-  moveTo(x, y) {
-    this.d += "M " + x + " " + y + " ";
-    return this.d;
-  }
-  lineTo(x, y, relative=true) { // relative == relative coords
-    let cmd = (relative) ? "l" : "L";
-    this.d += cmd + " " + x + " " + y + " ";
-    return this.d;
-  }
-  horizontalTo(x, relative=true) {
-    let cmd = (relative) ? "h" : "H";
-    this.d += cmd + " " + x + " ";
-    return this.d;
-  }
-  verticalTo(y, relative=true) {
-    let cmd = (relative) ? "v" : "V";
-    this.d += cmd + " " + y + " ";
-    return this.d;
-  }
-  bezierCurve(cubic=true, relative=true, ...params) { // line starts at current position
-    if (cubic) { // cubic curve
-      let cmd = (relative) ? "c" : "C";
-
-      /*let x1 = params[0]; // start control point
-      let y1 = params[1];
-      let x2 = params[2]; // end control point
-      let y2 = params[3];
-      let x = params[4]; // line end
-      let y = params[5];*/
-
-      this.d += cmd + " " + params.slice(0, 6).join(" ") + " ";
-    } else { // quadratic curve
-      let cmd = (relative) ? "q" : "Q";
-      // read the mdn docs pls: https://developer.mozilla.org/en-US/docs/Web/SVG/Tutorial/Paths#b%C3%A9zier_curves
-      this.d += cmd + " " + params.slice(0, 4).join(", ") + " ";
-    }
-    return this.d;
-  }
-  //bezierCurveForAngle(start, angle, end) {
-
-  //}
-  closePath() {
-    this.d += "Z";
-  }
-}
-
-class RoundedTriangleNew {
+class RoundedTriangle {
   constructor(x, y, cd, width) {
+    this.ox = x;
+    this.oy = y;
     this.x = x;
     this.y = y;
     this.width = width;
     this.height = (width / 2) * Math.sqrt(3);
     this.cd = cd; // corner distance, distance from the corner of the triangle where the curve starts
     this.cornerHeight = (cd / 2) * Math.sqrt(3);
+    this.strokeWidth = 3;
 
+    this.container = document.createElementNS("http://www.w3.org/2000/svg", "g");
     this.path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    this.container.appendChild(this.path);
     this.stroke = "white";
     this.path.setAttribute("stroke", this.stroke);
-    this.path.setAttribute("stroke-width", 3);
+    this.path.setAttribute("stroke-width", this.strokeWidth);
     this.path.setAttribute("fill", "white");
 
-    // create top corner:
-    let cT = this.createCorner(x + width / 2, y, -1, -1);
+    y += cd + this.cornerHeight; // some correctins
+    x += cd;
+
+    let cT = this.createCorner(x + width / 2, y - cd, -1, -1); // create top corner:
     // create line from top to bottom right corner:
     // the moveto is just for correction
     let rl = "m " + cd + " 0 l " + (width / 2 - (cd / 2)) + " " + (this.height - cd);
-    // bottom right corner:
-    let cBr = this.createCorner(cd / 2, this.cornerHeight, 1, 1, true);
-    // line to last corner:
-    let bl = "m " + (-cd / 2) + " " + this.cornerHeight + " l " + (-(width - cd)) + " 0";
-    // last corner
-    let cBl = this.createCorner(-cd, 0, -1, 1, true);
-    // last line with close command
-    let ll = "m 0 0 l " + (width / 2 - (cd / 2.3)) + " " + (-(this.height - (this.cornerHeight))) + " Z";
+    let cBr = " " + this.createCorner(cd / 2, this.cornerHeight, 1, 1, true); // bottom right corner:
+    let bl = "m " + (-cd / 2) + " " + this.cornerHeight + " l " + (-(width - cd)) + " 0"; // line to last corner:
+    let cBl = " " + this.createCorner(-cd, 0, -1, 1, true); // last corner
+    let ll = "m 0 0 l " + (width / 2 - (cd / 2.3)) + " " + (-(this.height - (this.cornerHeight))) + " Z"; // last line with close command
+
+    this.createFilling([ // I have no idea what I did here ._.
+      {
+        x: x + width / 2 - cd / 2,
+        y: y - cd - 2
+      },
+      {
+        x: x + width / 2 + cd / 2,
+        y: y - cd - 2
+      },
+      {
+        x: x + width,
+        y: y + this.height - this.cornerHeight - cd * 2
+      },
+      {
+        x: x + width - cd / 2,
+        y: y + this.height - cd*2 - this.strokeWidth / 2
+      },
+      {
+        x: x + cd / 2,
+        y: y + this.height - cd*2 - this.strokeWidth / 2
+      },
+      {
+        x: x,
+        y: y + this.height - this.cornerHeight - cd*2
+      }
+    ]); // work around for the path not filling correctly :/... idk I'm a newbie at pths
+    this.container.appendChild(this.filling);
+    this.filling.setAttribute("fill", "white");
 
     this.d = cT + rl + cBr + bl + cBl + ll;
     this.path.setAttribute("d", this.d);
+  }
+  createFilling(corners) {
+    this.filling = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+    let p = "";
+    corners.forEach((c) => {
+      p += c.x + "," + c.y + " ";
+    });
+    this.filling.setAttribute("points", p);
+    return this.filling;
   }
   createCorner(x, y, rot, yDir, relativeCoords=false) {
     let cd = this.cd;
@@ -738,17 +672,84 @@ class RoundedTriangleNew {
     return d;
   }
 }
+class RoundedTriangleComponent extends RoundedTriangle {
+  constructor(x, y, rot, scale) {
+    super(1, 1, 3, 13);
+    this.x = x - 1;
+    this.y = y - 1;
+    this.rot = rot;
+    this.scale = scale;
+    this.isComponent = true;
+
+    this.rx = 1; // relative coords of the path/polygon
+    this.ry = 1;
+
+    const parentContainer = this.container;
+    this.container = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    this.container.style.overflow = "overlay";
+    this.container.appendChild(parentContainer);
+    this.updateAttributes();
+
+    return this;
+  }
+  setScale(s) {
+    this.scale = s;
+    this.updateAttributes();
+  }
+  setPosition(pos) {
+    this.x = pos.x;
+    this.y = pos.y;
+    this.updateAttributes();
+  }
+  setColor(color) {
+    this.color = color;
+    this.updateAttributes();
+  }
+  setStroke(opts) {
+    this.stroke = opts.stroke;
+    this.strokeWidth = opts.width;
+    this.updateAttributes();
+  }
+  updateAttributes() {
+    const path = this.path;
+    const filling = this.filling;
+    const svg = this.container;
+
+    svg.setAttribute("x", this.x);
+    svg.setAttribute("y", this.y);
+
+    if (this.color) {
+      path.setAttribute("fill", this.color);
+      filling.setAttribute("fill", this.color);
+    }
+    if (this.stroke) {
+      path.setAttribute("stroke", this.stroke);
+      filling.setAttribute("stroke", this.stroke);
+    }
+    if (this.strokeWidth) {
+      path.setAttribute("stroke-width", this.strokeWidth);
+      filling.setAttribute("stroke-width", this.strokeWidth);
+    }
+    if (this.rot || this.scale) {
+      path.setAttribute("transform", ((this.scale) ? "scale(" + this.scale + ") " : " ") + ((this.rot) ? "rotate(" + this.rot + "," + (this.rx + this.width/2) + "," + (this.ry + this.height/2) + ")" : ""));
+      filling.setAttribute("transform", ((this.scale) ? "scale(" + this.scale + ") " : " ") + ((this.rot) ? "rotate(" + this.rot + "," + (this.rx +this.width/2) + "," + (this.ry + this.height/2) + ")" : ""));
+    }
+  }
+  createSVGElement() {
+    return this.container;
+  }
+  setScale(scale) {
+    this.scale = scale;
+    this.updateAttributes();
+  }
+}
 
 document.body.style.height = window.innerHeight + "px";
 document.body.style.width = window.innerWidth + "px";
 
-const path = new RoundedTriangleNew(500, 500, 20, 100);
-
 const engine = new SVGEngine();
 const bgrd = new RasterBackground(0, 0, engine.width, engine.height, 1);
 engine.addComponent(bgrd);
-
-engine.element.appendChild(path.path);
 
 const rect = new Rectangle(120, 120, 50, 50, true);
 rect.setColor("black");
