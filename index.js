@@ -553,12 +553,21 @@ class RasterBackground {
 
     return this;
   }
-  pan(xDiff, yDiff) { // experimental
+  attach(engine) { // called on attaching to an SVGEngine
+    this.engine = engine;
+  }
+  pan(xDiff, yDiff, cXDiff, cYDiff) { // cDiff == the changes since the last event
     let dotDiffX = xDiff % this.distance; // the difference a single dot has to move
-    let dotDiffY = yDiff % this.distance; // TODO
+    let dotDiffY = yDiff % this.distance;
 
     this.dots.forEach((dot) => {
       dot.setPosition({ x: dot.ox + dotDiffX, y: dot.oy + dotDiffY });
+    });
+
+    if (!this.engine) return;
+    this.engine.components.forEach(d => {
+      let component = d.component;
+      component.setPosition({ x: component.x + cXDiff, y: component.y + cYDiff });
     });
   }
   initPanning() {
@@ -569,13 +578,13 @@ class RasterBackground {
         y: e.clientY
       };
     });
-    this.container.addEventListener("mousemove", (e) => {
+    window.addEventListener("mousemove", (e) => { // prevent glitching with window.on...
       if (!this.dragging) return;
       let xDiff = e.clientX - this.mouseStartPos.x;
       let yDiff = e.clientY - this.mouseStartPos.y;
       this.bgPos.x += xDiff;
       this.bgPos.y += yDiff;
-      this.pan(xDiff, yDiff);
+      this.pan(xDiff, yDiff, e.movementX, e.movementY);
     });
     this.container.addEventListener("mouseup", () => {
       this.dragging = false;
@@ -658,6 +667,10 @@ class SVGEngine {
     filter.appendChild(blend);
 
     return { element: defs, id: id };
+  }
+  setBackground(bgrd) {
+    bgrd.attach(this);
+    this.element.appendChild(bgrd.createSVGElement());
   }
   zoomOut() {
     this.components.forEach((c) => {
@@ -846,7 +859,7 @@ document.body.style.width = window.innerWidth + "px";
 
 const engine = new SVGEngine();
 const bgrd = new RasterBackground(0, 0, engine.width, engine.height, 1);
-engine.addComponent(bgrd);
+engine.setBackground(bgrd);
 
 const rect = new Rectangle(120, 120, 50, 50, true);
 rect.setColor("black");
