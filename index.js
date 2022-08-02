@@ -207,6 +207,10 @@ class Node extends Component {
     super.updateAttributes();
     this.setSubComponentAttributes();
   }
+  addAttachment(at) { // attachments like the move listener
+    this.attachments.push(at);
+    at.attach(this);
+  }
   setName(name) {
     this.name = name;
     this.nText = new Text(5, 20, name);
@@ -238,7 +242,57 @@ class ConditionNode extends Node {
     this.addSocket(InputSocketComponent.Type.BOOLEAN);
     this.addPlug(OutputPlugComponent.Type.CONNECTOR);
 
+    const dragHandler = new NodeDragAttachment();
+    dragHandler.attach(this);
+
     return this;
+  }
+}
+class Attachment {
+  constructor() {
+    this.node = null;
+
+    return this;
+  }
+  attach(node) {
+    this.node = node;
+  }
+}
+class NodeDragAttachment extends Attachment {
+  constructor() {
+    super();
+
+    this.dragging = false;
+    this.mouseStartPos = {}; // the mouse position when you start dragging to calc the offset
+    this.mouseElemOffset = {}; // offset of the mouse position to the element
+
+    return this;
+  }
+  attach(node) {
+    super.attach(node);
+    node.hRect.addEventListener("mousedown", (e) => {
+      this.mouseStartPos = {
+        x: e.clientX,
+        y: e.clientY
+      };
+      this.nodeStartPos = {
+        x: this.node.x,
+        y: this.node.y
+      }
+      this.dragging = true;
+    });
+    node.hRect.addEventListener("mouseup", () => {
+      this.mouseStartPos = {};
+      this.dragging = false;
+    });
+    window.addEventListener("mousemove", (e) => { // window, to prevent glitches
+      if (!this.dragging) return;
+      let xDiff = e.clientX - this.mouseStartPos.x;
+      let yDiff = e.clientY - this.mouseStartPos.y;
+      let x = this.nodeStartPos.x + xDiff;
+      let y = this.nodeStartPos.y + yDiff;
+      this.node.setPosition({ x: x, y: y });
+    });
   }
 }
 class Text {
@@ -375,6 +429,9 @@ class Rectangle {
     this.eventElem = document.createElement("span");
     this.clickEvent = new Event("click");
 
+    const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    this.elem = rect;
+
     return this;
   }
   setColor(color) {
@@ -391,7 +448,8 @@ class Rectangle {
     this.clipPath = path;
   }
   addEventListener(event, cb) {
-    return this.eventElem.addEventListener(event, cb);
+    //return this.eventElem.addEventListener(event, cb);
+    return this.elem.addEventListener(event, cb);
   }
   createClipPath(yOffset) {
     const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
@@ -431,13 +489,11 @@ class Rectangle {
     rect.setAttribute("ry", this.ry);
   }
   createSVGElement() {
-    const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-    this.elem = rect;
     this.updateAttributes();
-    rect.onclick = () => {
+    /*rect.onclick = () => {
       this.eventElem.dispatchEvent(this.clickEvent);
-    }
-    return rect;
+    }*/
+    return this.elem;
   }
   updateClip() {
     const e = document.querySelector("#" + this.clipPath); // get the clipPath element
@@ -760,6 +816,9 @@ rect.setStroke({
 
 const condition = new ConditionNode(100, 100, 200, 150, 1);
 engine.addComponent(condition);
+
+const condition1 = new ConditionNode(250, 250, 200, 150, 1);
+engine.addComponent(condition1);
 
 const r = new Rectangle(150, 150, 50, 50, true);
 
