@@ -540,7 +540,47 @@ class RasterBackground {
     this.baseDist = this.width / 23;
     this.dotRad = 5;
 
+    // panning support
+    this.bgPos = { // pan position
+      x: 0,
+      y: 0
+    };
+    this.mouseStartPos = {
+      x: 0,
+      y: 0
+    };
+    this.dragging = false;
+
     return this;
+  }
+  pan(xDiff, yDiff) { // experimental
+    let dotDiffX = xDiff % this.distance; // the difference a single dot has to move
+    let dotDiffY = yDiff % this.distance; // TODO
+
+    this.dots.forEach((dot) => {
+      dot.setPosition({ x: dot.ox + dotDiffX, y: dot.oy + dotDiffY });
+    });
+  }
+  initPanning() {
+    this.container.addEventListener("mousedown", (e) => {
+      this.dragging = true;
+      this.mouseStartPos = {
+        x: e.clientX,
+        y: e.clientY
+      };
+    });
+    this.container.addEventListener("mousemove", (e) => {
+      if (!this.dragging) return;
+      let xDiff = e.clientX - this.mouseStartPos.x;
+      let yDiff = e.clientY - this.mouseStartPos.y;
+      this.bgPos.x += xDiff;
+      this.bgPos.y += yDiff;
+      this.pan(xDiff, yDiff);
+    });
+    this.container.addEventListener("mouseup", () => {
+      this.dragging = false;
+      this.mouseStartPos = { x: 0, y: 0 };
+    });
   }
   createDots() {
     this.distance = this.baseDist * this.zoom;
@@ -561,6 +601,7 @@ class RasterBackground {
   createSVGElement() {
     this.container.innerHTML = "";
     this.createDots();
+    this.initPanning();
     this.container.append(this.bg.createSVGElement());
     this.container.append(...this.dots.map(el => el.createSVGElement()));
     return this.container;
