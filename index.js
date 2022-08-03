@@ -77,8 +77,14 @@ class OutputPlugComponent extends Component {
 
     this.type = type;
 
+    this.plugPos = { // center position of the circle
+      x: 20 * this.scale + 8 * this.scale,
+      y: 8 * this.scale
+    }
+
     this.oCircle = new Circle(20 * this.scale, 0, 8 * this.scale, true); // the white circle
     this.oCircle.setColor("white");
+    this.initConnector();
     this.elements.push({ element: this.oCircle, render: (el) => el.createSVGElement() });
 
     this.oT = new RoundedTriangleComponent(0, -1*this.scale, 90, 1 * this.scale); // the white triangle
@@ -87,11 +93,58 @@ class OutputPlugComponent extends Component {
 
     return this;
   }
+  getAbsCoords(elem) {
+    const box = elem.getBoundingClientRect();
+
+    const body = document.body;
+    const docEl = document.documentElement;
+
+    const scrollTop = window.pageYOffset || docEl.scrollTop || body.scrollTop;
+    const scrollLeft = window.pageXOffset || docEl.scrollLeft || body.scrollLeft;
+
+    const clientTop = docEl.clientTop || body.clientTop || 0;
+    const clientLeft = docEl.clientLeft || body.clientLeft || 0;
+
+    const top = box.top + scrollTop - clientTop;
+    const left = box.left + scrollLeft - clientLeft;
+
+    return { x: left, y: top };
+  }
+  initConnector() {
+    this.dragging = false;
+    this.oCircle.addEventListener("mousedown", (e) => {
+      this.dragging = true;
+      if (!this.engineElem) this.engineElem = this.findEngine();
+      this.activeConnector = new Connector(this, { x: e.clientX, y: e.clientY }, this.getAbsCoords(this.oCircle.container), this.scale);
+      const engine = this.engineElem;
+      engine.appendChild(this.activeConnector.createSVGElement());
+    });
+    window.addEventListener("mousemove", (e) => {
+      if (!this.dragging) return;
+      this.activeConnector.moveTo({ x: e.clientX, y: e.clientY });
+    });
+    window.addEventListener("mouseup", () => {
+      if (!this.dragging) return;
+      this.activeConnector.destroy();
+      this.dragging = false;
+    });
+  }
+  findEngine() { // find the html element of the engine recursively
+    var checkParent = (elem) => {
+      const parent = elem.parentElement;
+      return (parent.id.includes("ULVS-Engine_")) ? parent : checkParent(parent);
+    }
+    return checkParent(this.container);
+  }
   setSubComponentAttributes() { // update sub-elements
     this.oCircle.setPosition({
       x: 20 * this.scale,
       y: 0
     });
+    this.plugPos = {
+      x: 20 * this.scale + 8 * this.scale,
+      y: 8 * this.scale
+    }
     this.oT.setPosition({
       x: 0,
       y: -1 * this.scale
@@ -176,6 +229,9 @@ class Node extends Component {
     this.elements.push({ element: this.sockets, render: (el) => {return el.map(e => e.createSVGElement());} });
     this.elements.push({ element: this.plugs, render: (el) => {return el.map(e => e.createSVGElement());} });
 
+    this.dragHandler = new NodeDragAttachment();
+    this.dragHandler.attach(this);
+
     return this;
   }
   update() {
@@ -242,9 +298,6 @@ class ConditionNode extends Node {
     this.addSocket(InputSocketComponent.Type.BOOLEAN);
     this.addPlug(OutputPlugComponent.Type.CONNECTOR);
 
-    const dragHandler = new NodeDragAttachment();
-    dragHandler.attach(this);
-
     return this;
   }
 }
@@ -293,6 +346,47 @@ class NodeDragAttachment extends Attachment {
       let y = this.nodeStartPos.y + yDiff;
       this.node.setPosition({ x: x, y: y });
     });
+  }
+}
+class Connector extends Component {
+  constructor(plug, mousePos, absPlugCoords, scale) {
+    const startPos = absPlugCoords; // component stuff
+    let x = startPos.x + 8 * scale;
+    let y = startPos.y + 8 * scale;
+    let width = mousePos.x - x;
+    let height = mousePos.y - y;
+    super(x, y, width, height, scale);
+
+    this.plug = plug;
+    this.currMousePos = mousePos;
+    this.engine = plug.engineElem;
+    this.absCoords = absPlugCoords;
+
+    this.sCircle = new Circle(0, 0, 6 * this.scale, false); // the circle connected to the output plug
+    this.sCircle.setColor("#808080");
+    this.elements.push({ element: this.sCircle, render: (el) => el.createSVGElement() });
+
+    this.line = new Line(0, 0, this.currMousePos.x - this.x, this.currMousePos.y - this.y, 3 * this.scale);
+    this.line.setColor("#808080");
+    this.elements.push({ element: this.line, render: (el) => el.createSVGElement() });
+
+    this.eCircle = new Circle(this.currMousePos.x - this.x, this.currMousePos.y - this.y, 6 * this.scale, false);
+    this.eCircle.setColor("#808080");
+    this.elements.push({ element: this.eCircle, render: (el) => el.createSVGElement() });
+
+    return this;
+  }
+  getCoords() { // convert absolute coordinates to absolute coordinates
+
+  }
+  destroy() {
+    this.container.remove();
+    return;
+  }
+  moveTo(mousePos) {
+    this.currMousePos = mousePos;
+    this.line.setPosition({x: 0,y: 0}, { x: mousePos.x - this.x, y: mousePos.y - this.y});
+    this.eCircle.setPosition({ x: mousePos.x - this.x, y: mousePos.y - this.y });
   }
 }
 class Text {
@@ -355,6 +449,46 @@ class Triangle {
     console.error("TODO!");
   }
 }
+class Line {
+  constructor(x, y, x1, y1, width) {
+    this.x = x;
+    this.y = y;
+    this.x1 = x1; // end position of the current connector
+    this.y1 = y1;
+    this.width = width;
+    this.isComponent = true;
+
+    this.d = ""; // path instructions
+    this.color = "";
+
+    this.container = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    this.updateAttributes();
+
+    return this;
+  }
+  setColor(color) {
+    this.color = color;
+    this.updateAttributes();
+  }
+  setPosition(pos1, pos2) {
+    this.x = pos1.x;
+    this.y = pos1.y;
+    this.x1 = pos2.x;
+    this.y1 = pos2.y;
+    this.updateAttributes();
+  }
+  updateAttributes() {
+    const path = this.container;
+    this.d = "M " + this.x + " " + this.y + " "; // start position
+    this.d += "L " + this.x1 + " " + this.y1; // end position
+    path.setAttribute("d", this.d);
+    path.setAttribute("stroke-width", this.width);
+    if (this.color) path.setAttribute("stroke", this.color);
+  }
+  createSVGElement() {
+    return this.container;
+  }
+}
 class Circle {
   constructor(x, y, radius, cornerCoords) {
     this.x = (cornerCoords) ? x + radius : x;
@@ -369,6 +503,9 @@ class Circle {
     this.updateAttributes();
 
     return this;
+  }
+  addEventListener(event, cb) {
+    this.container.addEventListener(event, cb);
   }
   set radius(r) {
     this.r = r;
@@ -526,6 +663,8 @@ class RasterBackground {
       dot: "#1c1c1c"
     }
 
+    // TODO: Spam dragging while slow movement bug fix!
+
     this.x = x;
     this.y = y;
     this.width = width;
@@ -625,6 +764,7 @@ class SVGEngine {
     this.element = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     this.element.setAttribute("height", window.innerHeight);
     this.element.setAttribute("width", window.innerWidth);
+    this.element.id = "ULVS-Engine_" + (new Date()).getTime();
     document.body.appendChild(this.element);
 
     this.width = window.innerWidth;
