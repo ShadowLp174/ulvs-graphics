@@ -84,10 +84,7 @@ class OutputPlugComponent extends Component {
       x: 20 * this.scale + 8 * this.scale,
       y: 8 * this.scale
     }
-<<<<<<< HEAD
     this.parentSVGEngine = engine;
-=======
->>>>>>> 46bb2330c84ceb32a1888932d31c0b2bdca119fe
 
     this.oCircle = new Circle(20 * this.scale, 0, 8 * this.scale, true); // the white circle
     this.oCircle.setColor("white");
@@ -100,12 +97,9 @@ class OutputPlugComponent extends Component {
 
     return this;
   }
-<<<<<<< HEAD
   attachEngine(e) {
     this.parentSVGEngine = e;
   }
-=======
->>>>>>> 46bb2330c84ceb32a1888932d31c0b2bdca119fe
   getAbsCoords(elem) {
     const box = elem.getBoundingClientRect();
 
@@ -123,7 +117,6 @@ class OutputPlugComponent extends Component {
 
     return { x: left, y: top };
   }
-<<<<<<< HEAD
   distance(x, y, x1, y1) { // get the distance between two points x,y and x1,y1
     return Math.sqrt(Math.pow(x - x1, 2) + Math.pow(y - y1, 2));
   }
@@ -188,13 +181,6 @@ class OutputPlugComponent extends Component {
       this.dragging = true;
       this.initSnapping();
       if (!this.engineElem) this.engineElem = this.parentSVGEngine.element;
-=======
-  initConnector() {
-    this.dragging = false;
-    this.oCircle.addEventListener("mousedown", (e) => {
-      this.dragging = true;
-      if (!this.engineElem) this.engineElem = this.findEngine();
->>>>>>> 46bb2330c84ceb32a1888932d31c0b2bdca119fe
       this.activeConnector = new Connector(this, { x: e.clientX, y: e.clientY }, this.getAbsCoords(this.oCircle.container), this.scale);
       const engine = this.engineElem;
       engine.appendChild(this.activeConnector.createSVGElement());
@@ -202,7 +188,6 @@ class OutputPlugComponent extends Component {
     window.addEventListener("mousemove", (e) => {
       if (!this.dragging) return;
       this.activeConnector.moveTo({ x: e.clientX, y: e.clientY });
-<<<<<<< HEAD
       this.connectables.forEach((c, i) => {
         const distance = this.distance(c.coords.x, c.coords.y, e.clientX, e.clientY);
         this.connectables[i].distance = distance;
@@ -229,21 +214,12 @@ class OutputPlugComponent extends Component {
     window.addEventListener("mouseup", () => {
       if (!this.dragging) return;
       if (this.snapping) return this.snap();
-=======
-    });
-    window.addEventListener("mouseup", () => {
-      if (!this.dragging) return;
->>>>>>> 46bb2330c84ceb32a1888932d31c0b2bdca119fe
       this.activeConnector.destroy();
       this.dragging = false;
     });
   }
   findEngine() { // find the html element of the engine recursively
-<<<<<<< HEAD
     var checkParent = (elem) => { // unused
-=======
-    var checkParent = (elem) => {
->>>>>>> 46bb2330c84ceb32a1888932d31c0b2bdca119fe
       const parent = elem.parentElement;
       return (parent.id.includes("ULVS-Engine_")) ? parent : checkParent(parent);
     }
@@ -491,12 +467,6 @@ class Connector extends Component {
 
     return this;
   }
-<<<<<<< HEAD
-=======
-  getCoords() { // convert absolute coordinates to absolute coordinates
-
-  }
->>>>>>> 46bb2330c84ceb32a1888932d31c0b2bdca119fe
   destroy() {
     this.container.remove();
     return;
