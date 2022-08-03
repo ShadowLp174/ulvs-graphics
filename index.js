@@ -66,19 +66,29 @@ class Component {
     });
     return this.container;
   }
+  attachEngine(e) {
+    this.parentSVGEngine = e;
+  }
 }
 class OutputPlugComponent extends Component {
   static Type = {
     BOOLEAN: "bool",
     CONNECTOR: "connect"
   }
-  constructor(x, y, width, height, scale, type) {
+  constructor(x, y, width, height, scale, type, engine) {
     super(x, y, width, height, scale);
 
     this.type = type;
 
+    this.plugPos = { // center position of the circle
+      x: 20 * this.scale + 8 * this.scale,
+      y: 8 * this.scale
+    }
+    this.parentSVGEngine = engine;
+
     this.oCircle = new Circle(20 * this.scale, 0, 8 * this.scale, true); // the white circle
     this.oCircle.setColor("white");
+    this.initConnector();
     this.elements.push({ element: this.oCircle, render: (el) => el.createSVGElement() });
 
     this.oT = new RoundedTriangleComponent(0, -1*this.scale, 90, 1 * this.scale); // the white triangle
@@ -87,11 +97,143 @@ class OutputPlugComponent extends Component {
 
     return this;
   }
+  attachEngine(e) {
+    this.parentSVGEngine = e;
+  }
+  getAbsCoords(elem) {
+    const box = elem.getBoundingClientRect();
+
+    const body = document.body;
+    const docEl = document.documentElement;
+
+    const scrollTop = window.pageYOffset || docEl.scrollTop || body.scrollTop;
+    const scrollLeft = window.pageXOffset || docEl.scrollLeft || body.scrollLeft;
+
+    const clientTop = docEl.clientTop || body.clientTop || 0;
+    const clientLeft = docEl.clientLeft || body.clientLeft || 0;
+
+    const top = box.top + scrollTop - clientTop;
+    const left = box.left + scrollLeft - clientLeft;
+
+    return { x: left, y: top };
+  }
+  distance(x, y, x1, y1) { // get the distance between two points x,y and x1,y1
+    return Math.sqrt(Math.pow(x - x1, 2) + Math.pow(y - y1, 2));
+  }
+  initSnapping() {
+    this.sockets = this.getSockets();
+    this.connectables = [];
+    this.sockets.forEach(socket => {
+      const s = socket.cCircle; // connection element
+      const abs = this.getAbsCoords(s.container);
+      const coords = {
+        x: abs.x - this.parentSVGEngine.left,
+        y: abs.y - this.parentSVGEngine.top
+      };
+      this.connectables.push({
+        socket: socket,
+        coords: coords,
+        distance: null
+      });
+    });
+  }
+  getSockets() {
+    const sockets = [];
+    const gs = (component) => { // check children of components recursively for sockets
+      if (Array.isArray(component)) {
+        component.forEach(c => {
+          if (c instanceof InputSocketComponent) {
+            // TODO: Implement type filtration
+            sockets.push(c);
+            return;
+          }
+        });
+      }
+      if (!component.elements) return;
+      component.elements.forEach((el) => {
+        gs(el.element);
+      });
+    }
+    this.parentSVGEngine.components.forEach((c) => {
+      gs(c.component);
+    });
+    return sockets;
+  }
+  prepareSnap(connectable) {
+    this.snapping = true;
+    const socket = connectable.socket;
+    socket.cCircle.setRadius(10 * socket.scale); // change circle props without changing position
+    this.snappingSocket = connectable;
+  }
+  snap() {
+    const socket = this.snappingSocket.socket;
+    this.activeConnector.moveTo({
+      x: this.snappingSocket.coords.x + 8 * socket.scale,
+      y: this.snappingSocket.coords.y + 8 * socket.scale
+    });
+    socket.cCircle.setRadius(8 * socket.scale); // reset socket proportions
+    this.dragging = false;
+  }
+  initConnector() {
+    this.dragging = false;
+    this.snapping = false;
+    this.oCircle.addEventListener("mousedown", (e) => {
+      this.dragging = true;
+      this.initSnapping();
+      if (!this.engineElem) this.engineElem = this.parentSVGEngine.element;
+      this.activeConnector = new Connector(this, { x: e.clientX, y: e.clientY }, this.getAbsCoords(this.oCircle.container), this.scale);
+      const engine = this.engineElem;
+      engine.appendChild(this.activeConnector.createSVGElement());
+    });
+    window.addEventListener("mousemove", (e) => {
+      if (!this.dragging) return;
+      this.activeConnector.moveTo({ x: e.clientX, y: e.clientY });
+      this.connectables.forEach((c, i) => {
+        const distance = this.distance(c.coords.x, c.coords.y, e.clientX, e.clientY);
+        this.connectables[i].distance = distance;
+      });
+      this.connectables.sort((a, b) => {
+        if (a.distance < b.distance) return -1;
+        if (a.distance > b.distance) return 1;
+        return 0;
+      });
+      var reset = () => {
+        const s = this.snappingSocket.socket;
+        s.cCircle.setRadius(8 * s.scale);
+      }
+      if (this.connectables[0].distance > 50) {
+        if (!this.snappingSocket) return;
+        reset()
+        return;
+      }
+      if (this.connectables != this.snappingSocket && this.snappingSocket) {
+        reset();
+      }
+      this.prepareSnap(this.connectables[0]);
+    });
+    window.addEventListener("mouseup", () => {
+      if (!this.dragging) return;
+      if (this.snapping) return this.snap();
+      this.activeConnector.destroy();
+      this.dragging = false;
+    });
+  }
+  findEngine() { // find the html element of the engine recursively
+    var checkParent = (elem) => { // unused
+      const parent = elem.parentElement;
+      return (parent.id.includes("ULVS-Engine_")) ? parent : checkParent(parent);
+    }
+    return checkParent(this.container);
+  }
   setSubComponentAttributes() { // update sub-elements
     this.oCircle.setPosition({
       x: 20 * this.scale,
       y: 0
     });
+    this.plugPos = {
+      x: 20 * this.scale + 8 * this.scale,
+      y: 8 * this.scale
+    }
     this.oT.setPosition({
       x: 0,
       y: -1 * this.scale
@@ -176,6 +318,9 @@ class Node extends Component {
     this.elements.push({ element: this.sockets, render: (el) => {return el.map(e => e.createSVGElement());} });
     this.elements.push({ element: this.plugs, render: (el) => {return el.map(e => e.createSVGElement());} });
 
+    this.dragHandler = new NodeDragAttachment();
+    this.dragHandler.attach(this);
+
     return this;
   }
   update() {
@@ -228,22 +373,21 @@ class Node extends Component {
     return this.sockets;
   }
   addPlug(type) {
-    const plug = new OutputPlugComponent(this.tw - (36 - 8) * this.scale, (this.th * 0.2) + 25*this.scale + (36 * this.plugs.length) * this.scale, 16, 34, this.scale, type);
+    const plug = new OutputPlugComponent(this.tw - (36 - 8) * this.scale, (this.th * 0.2) + 25*this.scale + (36 * this.plugs.length) * this.scale, 16, 34, this.scale, type, this.parentSVGEngine);
     this.plugs.push(plug);
     return this.plug;
   }
 }
 class ConditionNode extends Node {
-  constructor(x, y, width, height, scale) {
+  constructor(x, y, width, height, scale, svgEngine) {
     super(x, y, width, height, scale);
 
     this.setName("If");
 
+    this.parentSVGEngine = svgEngine;
+
     this.addSocket(InputSocketComponent.Type.BOOLEAN);
     this.addPlug(OutputPlugComponent.Type.CONNECTOR);
-
-    const dragHandler = new NodeDragAttachment();
-    dragHandler.attach(this);
 
     return this;
   }
@@ -293,6 +437,44 @@ class NodeDragAttachment extends Attachment {
       let y = this.nodeStartPos.y + yDiff;
       this.node.setPosition({ x: x, y: y });
     });
+  }
+}
+class Connector extends Component {
+  constructor(plug, mousePos, absPlugCoords, scale) {
+    const startPos = absPlugCoords; // component stuff
+    let x = startPos.x + 8 * scale;
+    let y = startPos.y + 8 * scale;
+    let width = mousePos.x - x;
+    let height = mousePos.y - y;
+    super(x, y, width, height, scale);
+
+    this.plug = plug;
+    this.currMousePos = mousePos;
+    this.engine = plug.engineElem;
+    this.absCoords = absPlugCoords;
+
+    this.sCircle = new Circle(0, 0, 6 * this.scale, false); // the circle connected to the output plug
+    this.sCircle.setColor("#808080");
+    this.elements.push({ element: this.sCircle, render: (el) => el.createSVGElement() });
+
+    this.line = new Line(0, 0, this.currMousePos.x - this.x, this.currMousePos.y - this.y, 3 * this.scale);
+    this.line.setColor("#808080");
+    this.elements.push({ element: this.line, render: (el) => el.createSVGElement() });
+
+    this.eCircle = new Circle(this.currMousePos.x - this.x, this.currMousePos.y - this.y, 6 * this.scale, false);
+    this.eCircle.setColor("#808080");
+    this.elements.push({ element: this.eCircle, render: (el) => el.createSVGElement() });
+
+    return this;
+  }
+  destroy() {
+    this.container.remove();
+    return;
+  }
+  moveTo(mousePos) {
+    this.currMousePos = mousePos;
+    this.line.setPosition({x: 0,y: 0}, { x: mousePos.x - this.x, y: mousePos.y - this.y});
+    this.eCircle.setPosition({ x: mousePos.x - this.x, y: mousePos.y - this.y });
   }
 }
 class Text {
@@ -355,6 +537,46 @@ class Triangle {
     console.error("TODO!");
   }
 }
+class Line {
+  constructor(x, y, x1, y1, width) {
+    this.x = x;
+    this.y = y;
+    this.x1 = x1; // end position of the current connector
+    this.y1 = y1;
+    this.width = width;
+    this.isComponent = true;
+
+    this.d = ""; // path instructions
+    this.color = "";
+
+    this.container = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    this.updateAttributes();
+
+    return this;
+  }
+  setColor(color) {
+    this.color = color;
+    this.updateAttributes();
+  }
+  setPosition(pos1, pos2) {
+    this.x = pos1.x;
+    this.y = pos1.y;
+    this.x1 = pos2.x;
+    this.y1 = pos2.y;
+    this.updateAttributes();
+  }
+  updateAttributes() {
+    const path = this.container;
+    this.d = "M " + this.x + " " + this.y + " "; // start position
+    this.d += "L " + this.x1 + " " + this.y1; // end position
+    path.setAttribute("d", this.d);
+    path.setAttribute("stroke-width", this.width);
+    if (this.color) path.setAttribute("stroke", this.color);
+  }
+  createSVGElement() {
+    return this.container;
+  }
+}
 class Circle {
   constructor(x, y, radius, cornerCoords) {
     this.x = (cornerCoords) ? x + radius : x;
@@ -370,6 +592,9 @@ class Circle {
 
     return this;
   }
+  addEventListener(event, cb) {
+    this.container.addEventListener(event, cb);
+  }
   set radius(r) {
     this.r = r;
     if (!this.cornerCoords) return this.updateAttributes();
@@ -379,6 +604,13 @@ class Circle {
   }
   get radius() {
     return this.r;
+  }
+  setRadius(r, changePos=false) {
+    this.r = r;
+    if (!changePos || !this.cornerCoords) return this.updateAttributes();
+    this.x = this.ox + r;
+    this.y = this.oy + r;
+    return this.updateAttributes();
   }
   setPosition(pos) {
     this.x = (this.cornerCoords) ? pos.x + this.r : pos.x;
@@ -526,6 +758,8 @@ class RasterBackground {
       dot: "#1c1c1c"
     }
 
+    // TODO: Spam dragging while slow movement bug fix!
+
     this.x = x;
     this.y = y;
     this.width = width;
@@ -625,6 +859,7 @@ class SVGEngine {
     this.element = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     this.element.setAttribute("height", window.innerHeight);
     this.element.setAttribute("width", window.innerWidth);
+    this.element.id = "ULVS-Engine_" + (new Date()).getTime();
     document.body.appendChild(this.element);
 
     this.width = window.innerWidth;
@@ -633,7 +868,27 @@ class SVGEngine {
     this.components = [];
     this.scale = 1;
 
+    this.top = SVGEngine.getAbsCoords(this.element).y;
+    this.left = SVGEngine.getAbsCoords(this.element).x;
+
     return this;
+  }
+  static getAbsCoords(elem) {
+    const box = elem.getBoundingClientRect();
+
+    const body = document.body;
+    const docEl = document.documentElement;
+
+    const scrollTop = window.pageYOffset || docEl.scrollTop || body.scrollTop;
+    const scrollLeft = window.pageXOffset || docEl.scrollLeft || body.scrollLeft;
+
+    const clientTop = docEl.clientTop || body.clientTop || 0;
+    const clientLeft = docEl.clientLeft || body.clientLeft || 0;
+
+    const top = box.top + scrollTop - clientTop;
+    const left = box.left + scrollLeft - clientLeft;
+
+    return { x: left, y: top };
   }
   static createShadowFilter(dx=3, dy=3, x=0, y=0, deviation=2) {
     const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
@@ -684,13 +939,8 @@ class SVGEngine {
   }
   addComponent(c, render=(el)=>el.createSVGElement()) {
     this.components.push({ component: c, render: render});
+    if (c.attachEngine) c.attachEngine(this);
     this.element.appendChild(render(c));
-  }
-  createPath() {
-    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    path.setAttribute("d", "M10 10 L100 100");
-    path.setAttribute("stroke", "black");
-    this.element.appendChild(path);
   }
 }
 class RoundedTriangle {
@@ -868,10 +1118,10 @@ rect.setStroke({
   width: 1
 });
 
-const condition = new ConditionNode(100, 100, 200, 150, 1);
+const condition = new ConditionNode(100, 100, 200, 150, 1, engine);
 engine.addComponent(condition);
 
-const condition1 = new ConditionNode(250, 250, 200, 150, 1);
+const condition1 = new ConditionNode(250, 250, 200, 150, 1, engine);
 engine.addComponent(condition1);
 
 const r = new Rectangle(150, 150, 50, 50, true);
