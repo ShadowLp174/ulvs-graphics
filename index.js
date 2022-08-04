@@ -142,16 +142,18 @@ class OutputPlugComponent extends Component {
   }
   getSockets() {
     const sockets = [];
+    const check = (component) => {
+      if (!Array.isArray(component)) return;
+      component.forEach(c => {
+        if (!(c instanceof InputSocketComponent)) return;
+        if (c.node == this.node) return; // don't allow self-connections
+        // TODO: Implement type filtration
+        sockets.push(c);
+        return;
+      });
+    }
     const gs = (component) => { // check children of components recursively for sockets
-      if (Array.isArray(component)) {
-        component.forEach(c => {
-          if (c instanceof InputSocketComponent) {
-            // TODO: Implement type filtration
-            sockets.push(c);
-            return;
-          }
-        });
-      }
+      check(component);
       if (!component.elements) return;
       component.elements.forEach((el) => {
         gs(el.element);
@@ -192,9 +194,8 @@ class OutputPlugComponent extends Component {
       if (this.connected) return;
       this.dragging = true;
       this.initSnapping();
-      //if (!this.engineElem) this.engineElem = this.parentSVGEngine.element;
       this.activeConnector = new (ConnectorManager.getConnector(this.styleType))(this, { x: e.clientX, y: e.clientY }, this.getAbsCoords(this.oCircle.container), this.scale);
-      this.parentSVGEngine.addComponent(this.activeConnector, (el) => el.createSVGElement());
+      this.parentSVGEngine.element.appendChild(this.activeConnector.createSVGElement()); // don't add as a component to prevent "wobbing" while panning
     });
     this.node.addEventListener("move", () => {
       if (!this.activeConnector || !this.connected) return; // only execute if there is a connected connector
@@ -427,7 +428,8 @@ class ConditionNode extends Node {
     this.parentSVGEngine = svgEngine;
 
     this.addSocket(InputSocketComponent.Type.BOOLEAN);
-    this.addPlug(OutputPlugComponent.Type.CONNECTOR, type);
+    this.addPlug(OutputPlugComponent.Type.CONNECTOR, type); // if block
+    this.addPlug(OutputPlugComponent.Type.CONNECTOR, type); // else block
 
     return this;
   }
