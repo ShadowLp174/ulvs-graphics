@@ -75,10 +75,12 @@ class OutputPlugComponent extends Component {
     BOOLEAN: "bool",
     CONNECTOR: "connect"
   }
-  constructor(x, y, width, height, scale, type, engine) {
+  constructor(x, y, width, height, scale, type, engine, styleType="") {
     super(x, y, width, height, scale);
 
+    this.styleType = styleType;
     this.type = type;
+    this.connected = false;
 
     this.plugPos = { // center position of the circle
       x: 20 * this.scale + 8 * this.scale,
@@ -173,15 +175,17 @@ class OutputPlugComponent extends Component {
     });
     socket.cCircle.setRadius(8 * socket.scale); // reset socket proportions
     this.dragging = false;
+    this.connected = true;
   }
   initConnector() {
     this.dragging = false;
     this.snapping = false;
     this.oCircle.addEventListener("mousedown", (e) => {
+      if (this.connected) return;
       this.dragging = true;
       this.initSnapping();
       if (!this.engineElem) this.engineElem = this.parentSVGEngine.element;
-      this.activeConnector = new Connector(this, { x: e.clientX, y: e.clientY }, this.getAbsCoords(this.oCircle.container), this.scale);
+      this.activeConnector = new (ConnectorManager.getConnector(this.styleType))(this, { x: e.clientX, y: e.clientY }, this.getAbsCoords(this.oCircle.container), this.scale);
       const engine = this.engineElem;
       engine.appendChild(this.activeConnector.createSVGElement());
     });
@@ -372,14 +376,14 @@ class Node extends Component {
     this.sockets.push(socket);
     return this.sockets;
   }
-  addPlug(type) {
-    const plug = new OutputPlugComponent(this.tw - (36 - 8) * this.scale, (this.th * 0.2) + 25*this.scale + (36 * this.plugs.length) * this.scale, 16, 34, this.scale, type, this.parentSVGEngine);
+  addPlug(type, style) {
+    const plug = new OutputPlugComponent(this.tw - (36 - 8) * this.scale, (this.th * 0.2) + 25*this.scale + (36 * this.plugs.length) * this.scale, 16, 34, this.scale, type, this.parentSVGEngine, style);
     this.plugs.push(plug);
     return this.plug;
   }
 }
 class ConditionNode extends Node {
-  constructor(x, y, width, height, scale, svgEngine) {
+  constructor(x, y, width, height, scale, svgEngine, type="") {
     super(x, y, width, height, scale);
 
     this.setName("If");
@@ -387,7 +391,7 @@ class ConditionNode extends Node {
     this.parentSVGEngine = svgEngine;
 
     this.addSocket(InputSocketComponent.Type.BOOLEAN);
-    this.addPlug(OutputPlugComponent.Type.CONNECTOR);
+    this.addPlug(OutputPlugComponent.Type.CONNECTOR, type);
 
     return this;
   }
@@ -453,6 +457,65 @@ class Connector extends Component {
     this.engine = plug.engineElem;
     this.absCoords = absPlugCoords;
 
+    return this;
+  }
+  destroy() {
+    this.container.remove();
+    return;
+  }
+  moveTo(mousePos) {
+    this.currMousePos = mousePos;
+  }
+}
+class BezierConnector extends Connector {
+  constructor(plug, mousePos, absPlugCoords, scale) {
+    super(plug, mousePos, absPlugCoords, scale);
+
+    this.sCircle = new Circle(0, 0, 6 * this.scale, false); // the circle connected to the output plug
+    this.sCircle.setColor("#808080");
+    this.elements.push({ element: this.sCircle, render: (el) => el.createSVGElement() });
+
+    const end = {
+      x: this.currMousePos.x - this.x,
+      y: this.currMousePos.y - this.y
+    }
+
+    this.pathBuilder = new PathBuilder();
+    this.pathBuilder.moveTo(0, 0);
+    this.pathBuilder.cubicCurve(end.x / 2, 0, end.x / 2, end.y, end.x, end.y);
+    this.d = this.pathBuilder.build();
+    this.path = new Path();
+    this.path.path = this.d;
+    this.path.setColor("transparent");
+    this.path.setStroke({
+      stroke: "#808080",
+      width: 3 * this.scale
+    });
+    this.elements.push({ element: this.path, render: (el) => el.createSVGElement() });
+
+    this.eCircle = new Circle(end.x, end.y, 6 * this.scale, false);
+    this.eCircle.setColor("#808080");
+    this.elements.push({ element: this.eCircle, render: (el) => el.createSVGElement() });
+  }
+  moveTo(mousePos) {
+    super.moveTo(mousePos);
+
+    const end = {
+      x: this.currMousePos.x - this.x,
+      y: this.currMousePos.y - this.y
+    }
+
+    this.pathBuilder.clear();
+    this.pathBuilder.moveTo(0, 0);
+    this.pathBuilder.cubicCurve(end.x / 2, 0, end.x / 2, end.y, end.x, end.y);
+    this.path.path = this.pathBuilder.build();
+    this.eCircle.setPosition({ x: end.x, y: end.y});
+  }
+}
+class LineConnector extends Connector {
+  constructor(plug, mousePos, absPlugCoords, scale) {
+    super(plug, mousePos, absPlugCoords, scale);
+
     this.sCircle = new Circle(0, 0, 6 * this.scale, false); // the circle connected to the output plug
     this.sCircle.setColor("#808080");
     this.elements.push({ element: this.sCircle, render: (el) => el.createSVGElement() });
@@ -467,14 +530,30 @@ class Connector extends Component {
 
     return this;
   }
-  destroy() {
-    this.container.remove();
-    return;
-  }
   moveTo(mousePos) {
-    this.currMousePos = mousePos;
+    super.moveTo(mousePos);
+
     this.line.setPosition({x: 0,y: 0}, { x: mousePos.x - this.x, y: mousePos.y - this.y});
     this.eCircle.setPosition({ x: mousePos.x - this.x, y: mousePos.y - this.y });
+  }
+}
+class ConnectorManager {
+  static BEZIER = BezierConnector;
+  static LINE = LineConnector;
+
+  static getConnector(type) {
+    switch(type) {
+      case "bezier":
+        return ConnectorManager.BEZIER;
+      case "line":
+        return ConnectorManager.LINE;
+      default:
+        return ConnectorManager.BEZIER;
+    }
+  }
+
+  constructor() {
+    return this;
   }
 }
 class Text {
@@ -575,6 +654,80 @@ class Line {
   }
   createSVGElement() {
     return this.container;
+  }
+}
+class Path {
+  constructor() {
+    this.container = document.createElementNS("http://www.w3.org/2000/svg", "path");
+
+    return this;
+  }
+  set path(d) {
+    this.d = d;
+    this.updateAttributes();
+  }
+  get path() {
+    return this.d;
+  }
+  setStroke(opts) {
+    this.stroke = opts.stroke;
+    this.strokeWidth = opts.width;
+    this.updateAttributes();
+  }
+  setColor(c) {
+    this.fill = c;
+    this.updateAttributes();
+  }
+  updateAttributes() {
+    this.container.setAttribute("stroke", this.stroke);
+    this.container.setAttribute("stroke-width", this.strokeWidth);
+    this.container.setAttribute("fill", this.fill);
+    this.container.setAttribute("d", this.d);
+  }
+  createSVGElement() {
+    return this.container
+  }
+}
+class PathBuilder {
+  constructor() {
+    this.instructions = [];
+
+    return this;
+  }
+  build() {
+    return this.instructions.reduce((prev, curr) => {
+      if (typeof prev != "string") {
+        return prev.command + prev.content + curr.command + curr.content;
+      }
+      return prev + curr.command + curr.content;
+    });
+  }
+  uid() {
+    return Date.now().toString(36) + Math.random().toString(36).substr(2);
+  }
+  moveTo(x, y, relative=false) {
+    const instruction = {
+      command: (relative) ? "m" : "M",
+      content: " " + x + " " + y,
+      id: this.uid()
+    }
+    this.instructions.push(instruction);
+    return instruction.id;
+  }
+  cubicCurve(x1, y1, x2, y2, x, y, relative=false) {
+    const instruction = {
+      command: (relative) ? "c" : "C",
+      content: " " + x1 + " " + y1 + " " + x2 + " " + y2 + " " + x + " " + y,
+      id: this.uid()
+    }
+    this.instructions.push(instruction);
+    return instruction.id;
+  }
+  getInstruction(id) {
+    return this.instructions.filter(el => el.id == id)[0];
+  }
+  clear() {
+    this.instructions = [];
   }
 }
 class Circle {
@@ -1118,10 +1271,10 @@ rect.setStroke({
   width: 1
 });
 
-const condition = new ConditionNode(100, 100, 200, 150, 1, engine);
+const condition = new ConditionNode(100, 100, 200, 150, 1, engine, "bezier");
 engine.addComponent(condition);
 
-const condition1 = new ConditionNode(250, 250, 200, 150, 1, engine);
+const condition1 = new ConditionNode(250, 250, 200, 150, 1, engine, "line");
 engine.addComponent(condition1);
 
 const r = new Rectangle(150, 150, 50, 50, true);
