@@ -75,11 +75,12 @@ class OutputPlugComponent extends Component {
     BOOLEAN: "bool",
     CONNECTOR: "connect"
   }
-  constructor(x, y, width, height, scale, type, engine, styleType="") {
+  constructor(x, y, width, height, scale, type, engine, node, styleType="") {
     super(x, y, width, height, scale);
 
-    this.styleType = styleType;
-    this.type = type;
+    this.styleType = styleType; // the style of the connector like Bezier, or Line
+    this.type = type; // TODO: the type of the plug;
+    this.node = node; // the node the plug is attached to
     this.connected = false;
 
     this.plugPos = { // center position of the circle
@@ -173,6 +174,13 @@ class OutputPlugComponent extends Component {
       x: this.snappingSocket.coords.x + 8 * socket.scale,
       y: this.snappingSocket.coords.y + 8 * socket.scale
     });
+    socket.node.addEventListener("move", () => {
+      if (!this.activeConnector || !this.connected) return; // only execute if the node is currently connected
+      const pos = this.getAbsCoords(socket.cCircle.container);
+      pos.x += socket.cCircle.radius * socket.scale;
+      pos.y += socket.cCircle.radius * socket.scale;
+      this.activeConnector.moveTo(pos);
+    });
     socket.cCircle.setRadius(8 * socket.scale); // reset socket proportions
     this.dragging = false;
     this.connected = true;
@@ -184,10 +192,16 @@ class OutputPlugComponent extends Component {
       if (this.connected) return;
       this.dragging = true;
       this.initSnapping();
-      if (!this.engineElem) this.engineElem = this.parentSVGEngine.element;
+      //if (!this.engineElem) this.engineElem = this.parentSVGEngine.element;
       this.activeConnector = new (ConnectorManager.getConnector(this.styleType))(this, { x: e.clientX, y: e.clientY }, this.getAbsCoords(this.oCircle.container), this.scale);
-      const engine = this.engineElem;
-      engine.appendChild(this.activeConnector.createSVGElement());
+      this.parentSVGEngine.addComponent(this.activeConnector, (el) => el.createSVGElement());
+    });
+    this.node.addEventListener("move", () => {
+      if (!this.activeConnector || !this.connected) return; // only execute if there is a connected connector
+      const pos = this.getAbsCoords(this.oCircle.container);
+      pos.x += this.oCircle.radius * this.scale;
+      pos.y += this.oCircle.radius * this.scale;
+      this.activeConnector.moveStartTo(pos);
     });
     window.addEventListener("mousemove", (e) => {
       if (!this.dragging) return;
@@ -204,6 +218,7 @@ class OutputPlugComponent extends Component {
       var reset = () => {
         const s = this.snappingSocket.socket;
         s.cCircle.setRadius(8 * s.scale);
+        this.snapping = false;
       }
       if (this.connectables[0].distance > 50) {
         if (!this.snappingSocket) return;
@@ -218,7 +233,7 @@ class OutputPlugComponent extends Component {
     window.addEventListener("mouseup", () => {
       if (!this.dragging) return;
       if (this.snapping) return this.snap();
-      this.activeConnector.destroy();
+      this.activeConnector = this.activeConnector.destroy(); // destroy the connector and the variable; cause destroy returns undefined
       this.dragging = false;
     });
   }
@@ -255,10 +270,11 @@ class InputSocketComponent extends Component {
   static Type = {
     BOOLEAN: "bool"
   }
-  constructor(x, y, width, height, scale, type) {
+  constructor(x, y, width, height, scale, type, node) {
     super(x, y, width, height, scale);
 
-    this.type = type;
+    this.type = type; // TODO: the type of the socket
+    this.node = node; // the node the socket is attached to
 
     this.cCircle = new Circle(0, 0, 8 * this.scale, true);
     this.cCircle.setColor("white");
@@ -325,7 +341,27 @@ class Node extends Component {
     this.dragHandler = new NodeDragAttachment();
     this.dragHandler.attach(this);
 
+    this.eventElem = document.createElement("span");
+    this.events = {
+      move: new Event("move")
+    }
+
     return this;
+  }
+  addEventListener(event, cb) {
+    return this.eventElem.addEventListener(event, cb);
+  }
+  emit(event) {
+    const e = this.events[event];
+    if (!e) {
+      console.error("Unknown event '" + event + "'! At Node.emit()");
+      return;
+    }
+    this.eventElem.dispatchEvent(e);
+  }
+  setPosition(pos) {
+    super.setPosition(pos);
+    this.emit("move");
   }
   update() {
     /*this.elements.forEach((e, i) => {
@@ -372,12 +408,12 @@ class Node extends Component {
     //this.cText = new Text();
   }
   addSocket(type) {
-    const socket = new InputSocketComponent((-8 * this.scale), (this.th * 0.2) + 25*this.scale + (36 * this.sockets.length) * this.scale, 16, 34, this.scale, type);
+    const socket = new InputSocketComponent((-8 * this.scale), (this.th * 0.2) + 25*this.scale + (36 * this.sockets.length) * this.scale, 16, 34, this.scale, type, this);
     this.sockets.push(socket);
     return this.sockets;
   }
   addPlug(type, style) {
-    const plug = new OutputPlugComponent(this.tw - (36 - 8) * this.scale, (this.th * 0.2) + 25*this.scale + (36 * this.plugs.length) * this.scale, 16, 34, this.scale, type, this.parentSVGEngine, style);
+    const plug = new OutputPlugComponent(this.tw - (36 - 8) * this.scale, (this.th * 0.2) + 25*this.scale + (36 * this.plugs.length) * this.scale, 16, 34, this.scale, type, this.parentSVGEngine, this, style);
     this.plugs.push(plug);
     return this.plug;
   }
@@ -454,7 +490,6 @@ class Connector extends Component {
 
     this.plug = plug;
     this.currMousePos = mousePos;
-    this.engine = plug.engineElem;
     this.absCoords = absPlugCoords;
 
     return this;
@@ -465,6 +500,9 @@ class Connector extends Component {
   }
   moveTo(mousePos) {
     this.currMousePos = mousePos;
+  }
+  moveStartTo(mousePos) {
+    this.setPosition(mousePos); // relocate svg container
   }
 }
 class BezierConnector extends Connector {
@@ -497,9 +535,7 @@ class BezierConnector extends Connector {
     this.eCircle.setColor("#808080");
     this.elements.push({ element: this.eCircle, render: (el) => el.createSVGElement() });
   }
-  moveTo(mousePos) {
-    super.moveTo(mousePos);
-
+  update() {
     const end = {
       x: this.currMousePos.x - this.x,
       y: this.currMousePos.y - this.y
@@ -510,6 +546,16 @@ class BezierConnector extends Connector {
     this.pathBuilder.cubicCurve(end.x / 2, 0, end.x / 2, end.y, end.x, end.y);
     this.path.path = this.pathBuilder.build();
     this.eCircle.setPosition({ x: end.x, y: end.y});
+  }
+  moveTo(mousePos) {
+    super.moveTo(mousePos);
+
+    this.update()
+  }
+  moveStartTo(mousePos) {
+    super.moveStartTo(mousePos);
+
+    this.update();
   }
 }
 class LineConnector extends Connector {
@@ -530,11 +576,21 @@ class LineConnector extends Connector {
 
     return this;
   }
+  update() {
+    const mousePos = this.mousePos;
+    this.line.setPosition({x: 0, y: 0}, { x: mousePos.x - this.x, y: mousePos.y - this.y});
+    this.eCircle.setPosition({ x: mousePos.x - this.x, y: mousePos.y - this.y });
+  }
   moveTo(mousePos) {
     super.moveTo(mousePos);
 
-    this.line.setPosition({x: 0,y: 0}, { x: mousePos.x - this.x, y: mousePos.y - this.y});
-    this.eCircle.setPosition({ x: mousePos.x - this.x, y: mousePos.y - this.y });
+    this.mousePos = mousePos;
+    this.update(mousePos);
+  }
+  moveStartTo(mousePos) {
+    super.moveStartTo(mousePos);
+
+    this.update();
   }
 }
 class ConnectorManager {
