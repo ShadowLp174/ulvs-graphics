@@ -70,6 +70,79 @@ class Component {
     this.parentSVGEngine = e;
   }
 }
+class UserInteractionManager {
+  constructor() {
+    this.listeners = [];
+
+    return this;
+  }
+  initListeners(el, onStart, onMove, onEnd) { // TODO: fix bugs appearing when using more than one finger
+    // mouse listeners
+    el.addEventListener("mousedown", onStart);
+    el.addEventListener("mousemove", onMove);
+    el.addEventListener("mouseup", onEnd);
+
+    // touch implementation
+    function prevent(e) {
+      if (e.cancelable) {
+        e.preventDefault();
+        return true;
+      }
+      return false;
+    }
+    const currTouches = [];
+    el.addEventListener("touchstart", (e) => {
+      prevent(e);
+      const touches = e.changedTouches;
+      for (var i = 0; i < touches.length; i++) {
+        currTouches.push(touches[i]);
+        onStart(touches[i]);
+      }
+    });
+    el.addEventListener("touchcanel", (e) => {
+      prevent(e);
+      const touches = e.changedTouches;
+      for (var i = 0; i < touches.length; i++) {
+        const touch = touches[i];
+        const pos = currTouches.findIndex(el => el.identifier == touch.identifier);
+        if (pos >= 0) currTouches.splice(pos, 1);
+        onEnd(e);
+      }
+    });
+    el.addEventListener("touchend", (e) => {
+      prevent(e);
+      const touches = e.changedTouches;
+      for (var i = 0; i < touches.length; i++) {
+        const touch = touches[i];
+        const pos = currTouches.findIndex(el => el.identifier == touch.identifier);
+        if (pos >= 0) currTouches.splice(pos, 1);
+        onEnd(e);
+      }
+    });
+    el.addEventListener("touchmove", (e) => {
+      prevent(e);
+      const touches = e.changedTouches;
+      for (var i = 0; i < touches.length; i++) {
+        const touch = touches[i];
+        const pos = currTouches.findIndex(el => el.identifier == touch.identifier);
+        const event = {};
+        for (var key in touch) {
+          event[key] = touch[key];
+        }
+        const movementX = touch.clientX - currTouches[pos].clientX;
+        const movementY = touch.clientY - currTouches[pos].clientY;
+        event.movementX = movementX;
+        event.movementY = movementY;
+        if (pos >= 0) {
+          currTouches.splice(pos, 1, touch);
+        } else {
+          currTouches.push(touch);
+        }
+        onMove(event);
+      }
+    });
+  }
+}
 class OutputPlugComponent extends Component {
   static Type = {
     BOOLEAN: "bool",
@@ -82,6 +155,7 @@ class OutputPlugComponent extends Component {
     this.type = type; // TODO: the type of the plug;
     this.node = node; // the node the plug is attached to
     this.connected = false;
+    this.interactions = new UserInteractionManager(); // user interactions
 
     this.plugPos = { // center position of the circle
       x: 20 * this.scale + 8 * this.scale,
@@ -190,13 +264,13 @@ class OutputPlugComponent extends Component {
   initConnector() {
     this.dragging = false;
     this.snapping = false;
-    this.oCircle.addEventListener("mousedown", (e) => {
+    this.interactions.initListeners(this.oCircle.container, (e) => {
       if (this.connected) return;
       this.dragging = true;
       this.initSnapping();
       this.activeConnector = new (ConnectorManager.getConnector(this.styleType))(this, { x: e.clientX, y: e.clientY }, this.getAbsCoords(this.oCircle.container), this.scale);
       this.parentSVGEngine.element.appendChild(this.activeConnector.createSVGElement()); // don't add as a component to prevent "wobbing" while panning
-    });
+    }, () => {}, () => {});
     this.node.addEventListener("move", () => {
       if (!this.activeConnector || !this.connected) return; // only execute if there is a connected connector
       const pos = this.getAbsCoords(this.oCircle.container);
@@ -204,7 +278,8 @@ class OutputPlugComponent extends Component {
       pos.y += this.oCircle.radius * this.scale;
       this.activeConnector.moveStartTo(pos);
     });
-    window.addEventListener("mousemove", (e) => {
+    this.interactions.initListeners(window, () => {}, (e) => {
+      // move listener
       if (!this.dragging) return;
       this.activeConnector.moveTo({ x: e.clientX, y: e.clientY });
       this.connectables.forEach((c, i) => {
@@ -230,8 +305,8 @@ class OutputPlugComponent extends Component {
         reset();
       }
       this.prepareSnap(this.connectables[0]);
-    });
-    window.addEventListener("mouseup", () => {
+    }, (e) => {
+      // end/cancel listener
       if (!this.dragging) return;
       if (this.snapping) return this.snap();
       this.activeConnector = this.activeConnector.destroy(); // destroy the connector and the variable; cause destroy returns undefined
@@ -452,11 +527,14 @@ class NodeDragAttachment extends Attachment {
     this.mouseStartPos = {}; // the mouse position when you start dragging to calc the offset
     this.mouseElemOffset = {}; // offset of the mouse position to the element
 
+    this.interactions = new UserInteractionManager();
+
     return this;
   }
   attach(node) {
     super.attach(node);
-    node.hRect.addEventListener("mousedown", (e) => {
+    this.interactions.initListeners(node.hRect.elem, (e) => {
+      // mousedown
       this.mouseStartPos = {
         x: e.clientX,
         y: e.clientY
@@ -466,19 +544,20 @@ class NodeDragAttachment extends Attachment {
         y: this.node.y
       }
       this.dragging = true;
-    });
-    node.hRect.addEventListener("mouseup", () => {
+    }, () => {}, (e) => {
+      // mouseup
       this.mouseStartPos = {};
       this.dragging = false;
     });
-    window.addEventListener("mousemove", (e) => { // window, to prevent glitches
+    this.interactions.initListeners(window, () => {}, (e) => {
+      // mousemove
       if (!this.dragging) return;
       let xDiff = e.clientX - this.mouseStartPos.x;
       let yDiff = e.clientY - this.mouseStartPos.y;
       let x = this.nodeStartPos.x + xDiff;
       let y = this.nodeStartPos.y + yDiff;
       this.node.setPosition({ x: x, y: y });
-    });
+    }, () => {});
   }
 }
 class Connector extends Component {
@@ -976,6 +1055,7 @@ class RasterBackground {
     this.width = width;
     this.height = height;
     this.zoom = zoom;
+    this.interactions = new UserInteractionManager();
 
     this.container = document.createElementNS("http://www.w3.org/2000/svg", "g");
 
@@ -1016,25 +1096,27 @@ class RasterBackground {
     });
   }
   initPanning() {
-    this.container.addEventListener("mousedown", (e) => {
+    this.interactions.initListeners(this.container, (e) => {
+      // mousedown
       this.dragging = true;
       this.mouseStartPos = {
         x: e.clientX,
         y: e.clientY
       };
+    }, () => {}, (e) => {
+      // mouseup
+      this.dragging = false;
+      this.mouseStartPos = { x: 0, y: 0 };
     });
-    window.addEventListener("mousemove", (e) => { // prevent glitching with window.on...
+    this.interactions.initListeners(window, () => {}, (e) => {
+      // mousemove on windows to prevent glitching when noving mouse over other elements
       if (!this.dragging) return;
       let xDiff = e.clientX - this.mouseStartPos.x;
       let yDiff = e.clientY - this.mouseStartPos.y;
       this.bgPos.x += xDiff;
       this.bgPos.y += yDiff;
       this.pan(xDiff, yDiff, e.movementX, e.movementY);
-    });
-    this.container.addEventListener("mouseup", () => {
-      this.dragging = false;
-      this.mouseStartPos = { x: 0, y: 0 };
-    });
+    }, () => {})
   }
   createDots() {
     this.distance = this.baseDist * this.zoom;
@@ -1070,6 +1152,7 @@ class SVGEngine {
     this.element = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     this.element.setAttribute("height", window.innerHeight);
     this.element.setAttribute("width", window.innerWidth);
+    this.element.style.touchAction = "none";
     this.element.id = "ULVS-Engine_" + (new Date()).getTime();
     document.body.appendChild(this.element);
 
@@ -1340,6 +1423,7 @@ const r = new Rectangle(150, 150, 50, 50, true);
 document.body.style.overflow = "hidden";
 
 window.addEventListener("mousewheel", (e) => {
+  e.preventDefault();
   if (!e.ctrlKey) return;
   if (e.deltaY > 0) {
     // zoom out
