@@ -9,7 +9,7 @@ There are two index files. One PHP and one HTML file. The PHP file is for Apache
 
 ## Concept Art
 
-![Concept art image](https://raw.githubusercontent.com/Carroted/ulvs-graphics/master/concep-art.png)
+![Concept art image](https://raw.githubusercontent.com/Carroted/ulvs-graphics/master/concept-art.png)
 Concept art by Alex_Sour
 
 ## TODOs
