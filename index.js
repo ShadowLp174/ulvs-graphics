@@ -70,13 +70,39 @@ class Component {
     this.parentSVGEngine = e;
   }
 }
+class Group { // somehow the equivalent to the <g> element
+  constructor() {
+    this.components = [];
+
+    this.container = document.createElementNS("http://www.w3.org/2000/svg", "g");
+
+    return this;
+  }
+  setPosition(pos) {
+    this.components.forEach((c) => {
+      c.setPosition(pos);
+    });
+  }
+  setScale(s) {
+    this.components.forEach((c) => {
+      c.setScale(s);
+    });
+  }
+  addComponent(c, render=(el)=>el.createSVGElement()) {
+    this.components.push(c);
+    this.container.appendChild(render(c));
+  }
+  createSVGElement() {
+    return this.container;
+  }
+}
 class UserInteractionManager {
   constructor() {
     this.listeners = [];
 
     return this;
   }
-  initListeners(el, onStart, onMove, onEnd) { // TODO: fix bugs appearing when using more than one finger
+  initListeners(el, onStart, onMove, onEnd, maxTouches=Number.POSITIVE_INFINITY, reuseTouches=false) { // TODO: fix bugs appearing when using more than one finger
     // mouse listeners
     el.addEventListener("mousedown", onStart);
     el.addEventListener("mousemove", onMove);
@@ -93,9 +119,19 @@ class UserInteractionManager {
     const currTouches = [];
     el.addEventListener("touchstart", (e) => {
       prevent(e);
+      if (!window.OpenVSTouches) window.OpenVSTouches = [];
       const touches = e.changedTouches;
       for (var i = 0; i < touches.length; i++) {
+        if (currTouches.length >= maxTouches) continue;
+        if (!reuseTouches && maxTouches != Number.POSITIVE_INFINITY) {
+          if (window.OpenVSTouches.findIndex(el => el.identifier == touches[i].identifier) != -1) return;
+          currTouches.push(touches[i]);
+          onStart(touches[i]);
+          window.OpenVSTouches.push(touches[i]);
+          return;
+        }
         currTouches.push(touches[i]);
+        window.OpenVSTouches.push(touches[i]);
         onStart(touches[i]);
       }
     });
@@ -106,7 +142,9 @@ class UserInteractionManager {
         const touch = touches[i];
         const pos = currTouches.findIndex(el => el.identifier == touch.identifier);
         if (pos >= 0) currTouches.splice(pos, 1);
-        onEnd(e);
+        if (pos >= 0) onEnd(e);
+        const p = window.OpenVSTouches.findIndex(el => el.identifier == touch.identifier);
+        if (p >= 0) window.OpenVSTouches.splice(p, 1);
       }
     });
     el.addEventListener("touchend", (e) => {
@@ -116,7 +154,9 @@ class UserInteractionManager {
         const touch = touches[i];
         const pos = currTouches.findIndex(el => el.identifier == touch.identifier);
         if (pos >= 0) currTouches.splice(pos, 1);
-        onEnd(e);
+        if (pos >= 0) onEnd(e);
+        const p = window.OpenVSTouches.findIndex(el => el.identifier == touch.identifier);
+        if (p >= 0) window.OpenVSTouches.splice(p, 1);
       }
     });
     el.addEventListener("touchmove", (e) => {
@@ -138,7 +178,7 @@ class UserInteractionManager {
         } else {
           currTouches.push(touch);
         }
-        onMove(event);
+        if (pos >= 0) onMove(event);
       }
     });
   }
@@ -162,6 +202,7 @@ class OutputPlugComponent extends Component {
       y: 8 * this.scale
     }
     this.parentSVGEngine = engine;
+    this.connected = [];
 
     this.oCircle = new Circle(20 * this.scale, 0, 8 * this.scale, true); // the white circle
     this.oCircle.setColor("white");
@@ -221,6 +262,7 @@ class OutputPlugComponent extends Component {
       component.forEach(c => {
         if (!(c instanceof InputSocketComponent)) return;
         if (c.node == this.node) return; // don't allow self-connections
+        if (this.connected.findIndex(el => el.connectedTo.id == c.id) >= 0) return;
         // TODO: Implement type filtration
         sockets.push(c);
         return;
@@ -250,26 +292,31 @@ class OutputPlugComponent extends Component {
       x: this.snappingSocket.coords.x + 8 * socket.scale,
       y: this.snappingSocket.coords.y + 8 * socket.scale
     });
+    this.activeConnector.connectedTo = this.snappingSocket.socket;
     socket.node.addEventListener("move", () => {
-      if (!this.activeConnector || !this.connected) return; // only execute if the node is currently connected
+      if (this.connected.length == 0 || !this.connected) return; // only execute if the node is currently connected
       const pos = this.getAbsCoords(socket.cCircle.container);
       pos.x += socket.cCircle.radius * socket.scale;
       pos.y += socket.cCircle.radius * socket.scale;
-      this.activeConnector.moveTo(pos);
+      this.connected.forEach((socket) => {
+        socket.moveTo(pos);
+      });
     });
+    this.connected.push(this.activeConnector);
     socket.cCircle.setRadius(8 * socket.scale); // reset socket proportions
     this.dragging = false;
-    this.connected = true;
   }
   initConnector() {
     this.dragging = false;
     this.snapping = false;
-    this.interactions.initListeners(this.oCircle.container, (e) => {
-      if (this.connected) return;
+    this.mouseDown = (e) => {
       this.dragging = true;
       this.initSnapping();
       this.activeConnector = new (ConnectorManager.getConnector(this.styleType))(this, { x: e.clientX, y: e.clientY }, this.getAbsCoords(this.oCircle.container), this.scale);
       this.parentSVGEngine.element.appendChild(this.activeConnector.createSVGElement()); // don't add as a component to prevent "wobbing" while panning
+    }
+    this.interactions.initListeners(this.oCircle.container, (e) => {
+      this.mouseDown(e);
     }, () => {}, () => {});
     this.node.addEventListener("move", () => {
       if (!this.activeConnector || !this.connected) return; // only execute if there is a connected connector
@@ -296,6 +343,7 @@ class OutputPlugComponent extends Component {
         s.cCircle.setRadius(8 * s.scale);
         this.snapping = false;
       }
+      if (this.connectables.length == 0) return;
       if (this.connectables[0].distance > 50) {
         if (!this.snappingSocket) return;
         reset()
@@ -305,7 +353,7 @@ class OutputPlugComponent extends Component {
         reset();
       }
       this.prepareSnap(this.connectables[0]);
-    }, (e) => {
+    }, () => {
       // end/cancel listener
       if (!this.dragging) return;
       if (this.snapping) return this.snap();
@@ -351,6 +399,7 @@ class InputSocketComponent extends Component {
 
     this.type = type; // TODO: the type of the socket
     this.node = node; // the node the socket is attached to
+    this.id = uid();
 
     this.cCircle = new Circle(0, 0, 8 * this.scale, true);
     this.cCircle.setColor("white");
@@ -447,7 +496,12 @@ class Node extends Component {
   setSubComponentAttributes() {
     this.bgRect.setScale(this.scale);
     this.hRect.setScale(this.scale);
+    this.nText.setScale(this.scale);
 
+    this.nText.setPosition({
+      x: 5 * this.scale,
+      y: 20 * this.scale
+    });
     this.sockets.forEach((socket, i) => {
       socket.setPosition({
         x: -8 * this.scale,
@@ -474,7 +528,7 @@ class Node extends Component {
   }
   setName(name) {
     this.name = name;
-    this.nText = new Text(5, 20, name);
+    this.nText = new Text(5*this.scale, 20*this.scale, name, this.scale);
     this.nText.setColor("white");
     console.log(this.nText);
     this.elements.push({ element: this.nText, render: (el) => el.createSVGElement() });
@@ -505,6 +559,8 @@ class ConditionNode extends Node {
     this.addSocket(InputSocketComponent.Type.BOOLEAN);
     this.addPlug(OutputPlugComponent.Type.CONNECTOR, type); // if block
     this.addPlug(OutputPlugComponent.Type.CONNECTOR, type); // else block
+
+    // this.checkbox = new Checkbox((height - 18)*this.scale);
 
     return this;
   }
@@ -548,7 +604,7 @@ class NodeDragAttachment extends Attachment {
       // mouseup
       this.mouseStartPos = {};
       this.dragging = false;
-    });
+    }, 1);
     this.interactions.initListeners(window, () => {}, (e) => {
       // mousemove
       if (!this.dragging) return;
@@ -572,6 +628,7 @@ class Connector extends Component {
     this.plug = plug;
     this.currMousePos = mousePos;
     this.absCoords = absPlugCoords;
+    this.id = uid();
 
     return this;
   }
@@ -585,6 +642,21 @@ class Connector extends Component {
   moveStartTo(mousePos) {
     this.setPosition(mousePos); // relocate svg container
   }
+  attachStartListener(el) {
+    this.plug.interactions.initListeners(el, (e) => {
+      this.plug.mouseDown(e);
+    }, () => {}, () => {});
+  }
+  attachMoveListener(el) { // the event to relocate the connector
+    this.plug.interactions.initListeners(el, () => {
+      this.plug.dragging = true;
+      this.plug.snapping = false;
+      this.connectedTo = { id: null };
+      this.plug.connected = this.plug.connected.splice(this.plug.connected.findIndex(el => el.id == this.id), 1);
+      this.plug.initSnapping();
+      this.plug.activeConnector = this;
+    }, () => {}, () => {});
+  }
 }
 class BezierConnector extends Connector {
   constructor(plug, mousePos, absPlugCoords, scale) {
@@ -593,11 +665,16 @@ class BezierConnector extends Connector {
     this.sCircle = new Circle(0, 0, 6 * this.scale, false); // the circle connected to the output plug
     this.sCircle.setColor("#808080");
     this.elements.push({ element: this.sCircle, render: (el) => el.createSVGElement() });
+    super.attachStartListener(this.sCircle.container);
 
     const end = {
       x: this.currMousePos.x - this.x,
       y: this.currMousePos.y - this.y
     }
+
+    this.group = new Group();
+    super.attachMoveListener(this.group.container);
+    this.elements.push({ element: this.group, render: (el) => el.createSVGElement() });
 
     this.pathBuilder = new PathBuilder();
     this.pathBuilder.moveTo(0, 0);
@@ -610,11 +687,11 @@ class BezierConnector extends Connector {
       stroke: "#808080",
       width: 3 * this.scale
     });
-    this.elements.push({ element: this.path, render: (el) => el.createSVGElement() });
+    this.group.addComponent(this.path);
 
     this.eCircle = new Circle(end.x, end.y, 6 * this.scale, false);
     this.eCircle.setColor("#808080");
-    this.elements.push({ element: this.eCircle, render: (el) => el.createSVGElement() });
+    this.group.addComponent(this.eCircle);
   }
   update() {
     const end = {
@@ -643,17 +720,23 @@ class LineConnector extends Connector {
   constructor(plug, mousePos, absPlugCoords, scale) {
     super(plug, mousePos, absPlugCoords, scale);
 
+
     this.sCircle = new Circle(0, 0, 6 * this.scale, false); // the circle connected to the output plug
     this.sCircle.setColor("#808080");
     this.elements.push({ element: this.sCircle, render: (el) => el.createSVGElement() });
+    super.attachStartListener(this.sCircle.container);
+
+    this.group = new Group();
+    this.elements.push({ element: this.group, render: (el) => el.createSVGElement() });
+    super.attachMoveListener(this.group.container);
 
     this.line = new Line(0, 0, this.currMousePos.x - this.x, this.currMousePos.y - this.y, 3 * this.scale);
     this.line.setColor("#808080");
-    this.elements.push({ element: this.line, render: (el) => el.createSVGElement() });
+    this.group.addComponent(this.line);
 
     this.eCircle = new Circle(this.currMousePos.x - this.x, this.currMousePos.y - this.y, 6 * this.scale, false);
     this.eCircle.setColor("#808080");
-    this.elements.push({ element: this.eCircle, render: (el) => el.createSVGElement() });
+    this.group.addComponent(this.eCircle);
 
     return this;
   }
@@ -694,29 +777,41 @@ class ConnectorManager {
   }
 }
 class Text {
-  constructor(x, y, text) {
+  constructor(x, y, text, scale) {
     this.x = x;
     this.y = y;
     this.txt = text;
+    this.scale = scale;
     this.isComponent = true;
+
+    this.container = document.createElementNS("http://www.w3.org/2000/svg", "text");
   }
   static measureText() {
 
   }
   setColor(color) {
     this.color = color;
+    this.updateAttributes();
   }
-  createSVGElement() {
-    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  updateAttributes() {
+    const text = this.container;
     text.innerHTML = this.txt;
     text.setAttribute("x", this.x);
     text.setAttribute("y", this.y);
     if (this.color) text.setAttribute("fill", this.color);
-    return text;
+    if (this.scale) text.style.transform = "scale(" + this.scale + ")";
   }
-  /*setScale(scale) { // TODO:
-
-  }*/
+  setPosition(pos) {
+    this.x = pos.x;
+    this.y = pos.y;
+  }
+  setScale(scale) {
+    this.scale = scale
+    this.updateAttributes();
+  }
+  createSVGElement() {
+    return this.container;
+  }
 }
 class Triangle {
   constructor(x, y, width, height, rot, rounded) {
@@ -939,10 +1034,13 @@ class Rectangle {
     this.y = y;
     this.height = height;
     this.width = width;
+    this.oheight = JSON.parse(JSON.stringify(height));
+    this.owidth = JSON.parse(JSON.stringify(width));
     this.rounded = rounded;
     this.isComponent = true;
 
     this.radius = radius;
+    this.oradius = JSON.parse(JSON.stringify(radius));
     this.rx = (radius !== 0) ? radius : 0.3;
     this.ry = (radius !== 0) ? radius : 0.3;
 
@@ -1030,15 +1128,60 @@ class Rectangle {
   }
   setScale(scale) {
     this.scale = scale;
-    this.height = this.height * scale;
-    this.width = this.width * scale;
-    this.radius = this.radius * scale;
+    this.height = this.oheight * scale; // oheight, owidth, etc to use the original values
+    this.width = this.owidth * scale;
+    this.radius = this.oradius * scale;
     this.rx = (this.radius !== 0) ? this.radius : 0.3;
     this.ry = (this.radius !== 0) ? this.radius : 0.3;
     if (this.clipPath) {
       this.updateClip();
     }
     this.updateAttributes();
+  }
+}
+class Checkbox {
+  constructor(x, y, scale) {
+    this.x = x;
+    this.y = y;
+    this.scale = scale;
+
+    this.container = document.createElement("input");
+    this.container.type = "checkbox";
+    this.container.classList.add("openvs_graphics_checkbox");
+    this.container.style.position = "absolute";
+    this.updateAttributes();
+
+    this.style = document.createElement("style");
+    document.head.appendChild(this.style);
+
+    return this;
+  }
+  createStyleDeclaration() {
+    var style = ".openvs_graphics_checkbox:checked:after {\n";
+    style += "font-size: " + (14 * this.scale) + "px;\n";
+    style += "left: " + (3 * this.scale) + "px;\n";
+    style += "}";
+    return style;
+  }
+  updateAttributes() {
+    this.container.style.top = this.y + "px";
+    this.container.style.left = this.x + "px";
+    if (this.scale) {
+      this.style.innerHTML = this.createStyleDeclaration();
+      this.container.style.padding = (9 * this.scale) + "px";
+    }
+  }
+  setPosition(pos) {
+    this.x = pos.x;
+    this.y = pos.y;
+    this.updateAttributes();
+  }
+  setScale(s) {
+    this.scale = s;
+    this.updateAttributes();
+  }
+  createSVGElement() {
+    return this.container;
   }
 }
 class RasterBackground {
@@ -1162,6 +1305,10 @@ class SVGEngine {
     this.components = [];
     this.scale = 1;
 
+    window.uid = () => {
+      return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    }
+
     this.top = SVGEngine.getAbsCoords(this.element).y;
     this.left = SVGEngine.getAbsCoords(this.element).x;
 
@@ -1222,13 +1369,15 @@ class SVGEngine {
     this.element.appendChild(bgrd.createSVGElement());
   }
   zoomOut() {
+    this.scale -= 0.2;
     this.components.forEach((c) => {
-      c.component.setScale(0.5);
+      c.component.setScale(this.scale);
     });
   }
   zoomIn() {
+    this.scale += 0.2;
     this.components.forEach((c) => {
-      c.component.setScale(1.5);
+      c.component.setScale(this.scale);
     });
   }
   addComponent(c, render=(el)=>el.createSVGElement()) {
@@ -1424,7 +1573,6 @@ document.body.style.overflow = "hidden";
 
 window.addEventListener("mousewheel", (e) => {
   e.preventDefault();
-  if (!e.ctrlKey) return;
   if (e.deltaY > 0) {
     // zoom out
     engine.zoomOut();

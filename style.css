@@ -1,0 +1,18 @@
+.openvs_graphics_checkbox {
+  appearance: none;
+  background-color: #121212;
+  padding: 9px;
+  border: 1px solid #121212;
+  border-radius: 3px;
+}
+.openvs_graphics_checkbox:active, .regular-checkbox:checked:active {
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05), inset 0px 1px 3px rgba(0,0,0,0.1);
+}
+.openvs_graphics_checkbox:checked:after {
+  content: '\2714';
+  font-size: 14px;
+  position: absolute;
+  top: 0px;
+  left: 3px;
+  color: #6e6e6e;
+}
