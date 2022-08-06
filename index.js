@@ -57,7 +57,7 @@ class Component {
   createSVGElement() { // create the whole svg element and return it
     this.container.innerHTML = "";
     this.elements.forEach((elem) => { // loop through each sub-element
-      const rendered = (!elem.render) ? elem.createSVGElement(elem.element) : elem.render(elem.element); // and call the render function
+      const rendered = (!elem.render) ? elem.element.createSVGElement(elem.element) : elem.render(elem.element); // and call the render function
       if (Array.isArray(rendered)) {
         this.container.append(...rendered);
       } else {
@@ -404,13 +404,14 @@ class InputSocketComponent extends Component {
   static TypeLabel = {
     bool: "BOOL"
   }
-  constructor(x, y, width, height, scale, type, node, label) {
+  constructor(x, y, width, height, scale, type, node, label, checkbox=true) {
     super(x, y, width, height, scale);
 
     this.type = type; // TODO: the type of the socket
     this.node = node; // the node the socket is attached to
     this.label = label;
     this.id = uid();
+    this.checkbox = checkbox;
 
     this.color = InputSocketComponent.ColorMapping[type];
 
@@ -431,13 +432,21 @@ class InputSocketComponent extends Component {
     return this;
   }
   initType() {
+    const offset = (this.checkbox) ? 23 : 0;
+    if (this.checkbox) {
+      this.box = new SVGCheckbox(21 * this.scale, 0, this.scale, false, (state) => {
+
+      });
+      this.elements.push({ element: this.box });
+    }
+
     let metrics = Text.measureText(this.label);
-    this.text = new Text(21 * this.scale, metrics.height + 3 * this.scale, this.label, this.scale);
+    this.text = new Text((21 + offset) * this.scale, metrics.height + 3 * this.scale, this.label, this.scale);
     this.text.setColor("white");
     this.elements.push({ element: this.text, render: (el) => el.createSVGElement() });
 
     let typeMetrics = Text.measureText(InputSocketComponent.TypeLabel[this.type]);
-    this.typeLabel = new Text((23 + metrics.width + typeMetrics.width)*this.scale, typeMetrics.height + 7 * this.scale, InputSocketComponent.TypeLabel[this.type], 0.7 * this.scale);
+    this.typeLabel = new Text((28 + offset + metrics.width + typeMetrics.width)*this.scale, typeMetrics.height + 8 * this.scale, InputSocketComponent.TypeLabel[this.type], 0.7 * this.scale);
     this.typeLabel.setColor(this.color);
     this.elements.push({ element: this.typeLabel, render: (el) => el.createSVGElement() });
   }
@@ -609,7 +618,7 @@ class Node extends Component {
   }
   addPlug(label, style) { // TODO: dynamically increase proportions when adding new plugs/inputs
     let metrics = Text.measureText(label);
-    const text = new Text(this.tw - (metrics.width + 34) * this.scale, (this.th * 0.15) + 26*this.scale + (36 * this.plugs.length + metrics.height) * this.scale, label, this.scale);
+    const text = new Text(this.tw - (metrics.width + 34.5) * this.scale, (this.th * 0.15) + 26*this.scale + (36 * this.plugs.length + metrics.height) * this.scale, label, this.scale);
     text.setColor("white");
     this.labels.push(text);
 
@@ -681,7 +690,7 @@ class NodeDragAttachment extends Attachment {
         y: this.node.y
       }
       this.dragging = true;
-    }, () => {}, (e) => {
+    }, () => {}, () => {
       // mouseup
       this.mouseStartPos = {};
       this.dragging = false;
@@ -1044,6 +1053,15 @@ class PathBuilder {
     this.instructions.push(instruction);
     return instruction.id;
   }
+  lineTo(x, y, relative=false) {
+    const instruction = {
+      command: (relative) ? "l" : "L",
+      content: " " + x + " " + y,
+      id: this.uid()
+    }
+    this.instructions.push(instruction);
+    return instruction.id;
+  }
   cubicCurve(x1, y1, x2, y2, x, y, relative=false) {
     const instruction = {
       command: (relative) ? "c" : "C",
@@ -1237,14 +1255,72 @@ class Rectangle {
     this.updateAttributes();
   }
 }
-class SVGCheckbox {
-  constructor(x, y, scale) {
-    this.x = x;
-    this.y = y;
-    this.scale = scale;
+class SVGCheckbox extends Component {
+  constructor(x, y, scale, checked=false, clickCallback=()=>{}) {
+    super(x, y, 18, 18, scale);
 
-    
+    this.checked = checked;
+    this.toggled = (checked) ? 1 : 0;
+    this.clickCallback = clickCallback;
+
+    // the box
+    this.bgRect = new Rectangle(0, 0, this.tw, this.th, true, 3);
+    this.bgRect.setColor("#121212");
+    this.bgRect.setStroke({
+      stroke: "#0f0f0f",
+      width: 2
+    });
+    this.elements.push({ element: this.bgRect });
+
+    // checkmark
+    this.builder = new PathBuilder();
+    this.builder.moveTo(3 * this.scale, this.th / 2);
+    this.builder.lineTo(this.tw / 2 - 1 * this.scale, this.th - (3 * this.scale));
+    this.builder.lineTo(this.tw - (3 * this.scale), 3 * this.scale);
+    this.mark = new Path();
+    this.mark.path = this.builder.build();
+    this.mark.setColor("transparent");
+    this.mark.setStroke({
+      stroke: "#747474",
+      width: 2
+    });
+    this.mark.container.style.display = (checked) ? "block" : "none";
+    this.elements.push({ element: this.mark });
+
+    // "clickability":
+    this.container.addEventListener("pointerdown", () => { // include touch and mouse clicks
+      this.toggle(this.clickCallback);
+    });
+
     return this;
+  }
+  toggle(cb) {
+    this.toggled = 1 - this.toggled;
+    this.checked = (this.toggled) ? true : false;
+    this.mark.container.style.display = (this.toggled) ? "block" : "none";
+    cb(this.toggled); // call the callback function with the current state
+  }
+  check() {
+    this.mark.container.style.display = "block";
+    this.checked = true;
+  }
+  uncheck() {
+    this.mark.container.style.display = "none";
+    this.checked = false;
+  }
+  setScale(s) {
+    this.scale = s;
+    this.updateAttributes();
+  }
+  updateAttributes() {
+    super.updateAttributes();
+    if (!this.builder) return; // happens when the super constructor is called
+    this.builder.clear();
+    this.builder.moveTo(3 * this.scale, this.th / 2);
+    this.builder.lineTo(this.tw / 2 - 1 * this.scale, this.th - (3 * this.scale));
+    this.builder.lineTo(this.tw - (3 * this.scale), 3 * this.scale);
+    this.mark.path = this.builder.build();
+    this.bgRect.setScale(this.scale);
   }
 }
 class HTMLCheckbox {
@@ -1313,7 +1389,7 @@ class RasterBackground {
     this.bg = new Rectangle(0, 0, this.width, this.height);
     this.bg.setColor(this.colors.background);
 
-    this.baseDist = this.width / 23;
+    //this.baseDist = this.width / 23;
     this.dotRad = 5;
 
     // panning support
@@ -1370,7 +1446,7 @@ class RasterBackground {
     }, () => {})
   }
   createDots() {
-    this.distance = this.baseDist * this.zoom;
+    this.distance = 35; //this.baseDist * this.zoom;
     this.rad = this.dotRad * this.zoom;
 
     this.dots = [];
@@ -1420,7 +1496,24 @@ class SVGEngine {
     this.top = SVGEngine.getAbsCoords(this.element).y;
     this.left = SVGEngine.getAbsCoords(this.element).x;
 
+    this.generateStyles();
+
     return this;
+  }
+  generateStyles() {
+    this.style = document.createElement("style");
+
+    this.style.innerHTML = "@font-face {\n";
+    this.style.innerHTML += "  font-family: LibreFranklin_" + this.element.id + ";\n";
+    this.style.innerHTML += "  src: url('https://carroted.github.io/ulvs-graphics/assets/LibreFranklin-VariableFont_wght.ttf');\n";
+    this.style.innerHTML += "}\n";
+
+    this.style.innerHTML += "#" + this.element.id + " * {\n";
+    this.style.innerHTML += "  font-family: LibreFranklin_" + this.element.id + ";\n";
+    this.style.innerHTML += "  font-size: 96%;\n";
+    this.style.innerHTML += "}";
+
+    document.head.appendChild(this.style);
   }
   static getAbsCoords(elem) {
     const box = elem.getBoundingClientRect();
