@@ -261,9 +261,11 @@ class OutputPlugComponent extends Component {
       if (!Array.isArray(component)) return;
       component.forEach(c => {
         if (!(c instanceof InputSocketComponent)) return;
+        // InputSocket selection ruleset
         if (c.node == this.node) return; // don't allow self-connections
-        if (this.connected.findIndex(el => el.connectedTo.id == c.id) >= 0) return;
-        // TODO: Implement type filtration
+        if (this.connected.findIndex(el => el.connectedTo.id == c.id) >= 0) return; // disable duplicate connections
+        if (c.type !== this.type) return; // only connect to sockets of the same type
+
         sockets.push(c);
         return;
       });
@@ -392,32 +394,64 @@ class OutputPlugComponent extends Component {
 }
 class InputSocketComponent extends Component {
   static Type = {
-    BOOLEAN: "bool"
+    BOOLEAN: "bool",
+    CONNECTOR: "connect"
   }
-  constructor(x, y, width, height, scale, type, node) {
+  static ColorMapping = {
+    bool: "#a44747",
+    connect: "#ffffff"
+  }
+  static TypeLabel = {
+    bool: "BOOL"
+  }
+  constructor(x, y, width, height, scale, type, node, label) {
     super(x, y, width, height, scale);
 
     this.type = type; // TODO: the type of the socket
     this.node = node; // the node the socket is attached to
+    this.label = label;
     this.id = uid();
 
+    this.color = InputSocketComponent.ColorMapping[type];
+
     this.cCircle = new Circle(0, 0, 8 * this.scale, true);
-    this.cCircle.setColor("white");
+    this.cCircle.setColor(this.color);
     this.elements.push({ element: this.cCircle, render: (el) => el.createSVGElement() });
 
+    if (type !== InputSocketComponent.Type.CONNECTOR) {
+      this.initType();
+      return this;
+    }
+
+    // only draw this when creating a connection connector
     this.cT = new RoundedTriangleComponent(22*this.scale, -1*this.scale, 90, 1 * this.scale);
-    this.cT.setColor("white");
+    this.cT.setColor(this.color);
     this.elements.push({ element: this.cT, render: (el) => el.createSVGElement() });
 
     return this;
   }
+  initType() {
+    let metrics = Text.measureText(this.label);
+    this.text = new Text(21 * this.scale, metrics.height + 3 * this.scale, this.label, this.scale);
+    this.text.setColor("white");
+    this.elements.push({ element: this.text, render: (el) => el.createSVGElement() });
+
+    let typeMetrics = Text.measureText(InputSocketComponent.TypeLabel[this.type]);
+    this.typeLabel = new Text((23 + metrics.width + typeMetrics.width)*this.scale, typeMetrics.height + 7 * this.scale, InputSocketComponent.TypeLabel[this.type], 0.7 * this.scale);
+    this.typeLabel.setColor(this.color);
+    this.elements.push({ element: this.typeLabel, render: (el) => el.createSVGElement() });
+  }
   setSubComponentAttributes() { // update sub-elements
+    this.cCircle.radius = 8 * this.scale;
+
+    if (this.text) this.text.setScale(this.scale);
+
+    if (this.type !== InputSocketComponent.Type.CONNECTOR) return;
+    this.cT.setScale(1 * this.scale);
     this.cT.setPosition({
       x: 22 * this.scale,
       y: -1 * this.scale
     });
-    this.cCircle.radius = 8 * this.scale;
-    this.cT.setScale(1 * this.scale);
   }
   setScale(s) {
     this.scale = s;
@@ -426,6 +460,21 @@ class InputSocketComponent extends Component {
   }
 }
 class Node extends Component {
+  static ClassColor = {
+    basic: "#8a5794",
+    event: "#779457",
+    deviceinfo: "#946148"
+  };
+  static Class = {
+    BASIC: "basic",
+    EVENT: "event",
+    DEVICEINFO: "deviceinfo"
+  }
+  static ClassName = {
+    basic: "Basic",
+    event: "Events",
+    deviceinfo: "Device Info"
+  }
   constructor(x, y, width, height, scale) {
     super(x, y, width, height, scale);
 
@@ -447,7 +496,7 @@ class Node extends Component {
     this.bgRect.setShadow(this.shadows.id);
     this.elements.push({ element: this.bgRect, render: (el) => el.createSVGElement() });
 
-    this.hRect = new Rectangle(0, 0, this.tw, this.th * 0.20, true, 5);
+    this.hRect = new Rectangle(0, 0, this.tw, this.th * 0.22, true, 5);
     this.hRect.setColor(this.colors.header);
     this.hRect.setStroke({
       color: this.colors.background,
@@ -459,8 +508,10 @@ class Node extends Component {
     this.elements.push({ element: this.hRect, render: (el) => el.createSVGElement() });
 
     this.sockets = [];
+    this.labels = [];
     this.plugs = [];
     this.elements.push({ element: this.sockets, render: (el) => {return el.map(e => e.createSVGElement());} });
+    this.elements.push({ element: this.labels, render: (el) => {return el.map(e => e.createSVGElement());} });
     this.elements.push({ element: this.plugs, render: (el) => {return el.map(e => e.createSVGElement());} });
 
     this.dragHandler = new NodeDragAttachment();
@@ -502,6 +553,15 @@ class Node extends Component {
       x: 5 * this.scale,
       y: 20 * this.scale
     });
+    this.hText.setScale(this.scale); // class name
+    let metrics = Text.measureText(this.hText.txt, "14px Times New Roman");
+    this.hText.setPosition({
+      x: this.tw - metrics.width * this.scale,
+      y: 26 * this.scale
+    });
+    this.labels.forEach(label => {
+      label.setScale(this.scale);
+    });
     this.sockets.forEach((socket, i) => {
       socket.setPosition({
         x: -8 * this.scale,
@@ -528,24 +588,44 @@ class Node extends Component {
   }
   setName(name) {
     this.name = name;
-    this.nText = new Text(5*this.scale, 20*this.scale, name, this.scale);
+    this.nText = new Text(5*this.scale, 22*this.scale, name, this.scale);
     this.nText.setColor("white");
-    console.log(this.nText);
     this.elements.push({ element: this.nText, render: (el) => el.createSVGElement() });
   }
   setClass(c) {
     this.class = c;
-    //this.cText = new Text();
+    let className = Node.ClassName[c];
+    let classColor = Node.ClassColor[c];
+    this.hRect.setColor(classColor);
+    let metrics = Text.measureText(className);
+    this.hText = new Text(this.tw - metrics.width / 2 * this.scale, 26 * this.scale, className, 0.8 * this.scale);
+    this.hText.setColor("white");
+    this.elements.push({ element: this.hText, render: (el) => el.createSVGElement() });
   }
-  addSocket(type) {
-    const socket = new InputSocketComponent((-8 * this.scale), (this.th * 0.2) + 25*this.scale + (36 * this.sockets.length) * this.scale, 16, 34, this.scale, type, this);
+  addSocket() {
+    const socket = new InputSocketComponent((-8 * this.scale), (this.th * 0.15) + 25*this.scale + (36 * this.sockets.length) * this.scale, 16, 34, this.scale, InputSocketComponent.Type.CONNECTOR, this);
     this.sockets.push(socket);
     return this.sockets;
   }
-  addPlug(type, style) {
-    const plug = new OutputPlugComponent(this.tw - (36 - 8) * this.scale, (this.th * 0.2) + 25*this.scale + (36 * this.plugs.length) * this.scale, 16, 34, this.scale, type, this.parentSVGEngine, this, style);
+  addPlug(label, style) { // TODO: dynamically increase proportions when adding new plugs/inputs
+    let metrics = Text.measureText(label);
+    const text = new Text(this.tw - (metrics.width + 34) * this.scale, (this.th * 0.15) + 26*this.scale + (36 * this.plugs.length + metrics.height) * this.scale, label, this.scale);
+    text.setColor("white");
+    this.labels.push(text);
+
+    const plug = new OutputPlugComponent(this.tw - (36 - 8) * this.scale, (this.th * 0.15) + 25*this.scale + (36 * this.plugs.length) * this.scale, 16, 34, this.scale, OutputPlugComponent.Type.CONNECTOR, this.parentSVGEngine, this, style);
     this.plugs.push(plug);
     return this.plug;
+  }
+  addInputSocket(type, label) {
+    let metrics = Text.measureText(label);
+    const text = new Text(15 * this.scale, this.th - (21) * this.scale + metrics.height + this.scale, label, this.scale);
+    text.setColor("white");
+    //this.labels.push(text);
+
+    const socket = new InputSocketComponent((-8 * this.scale), this.th - (23) * this.scale, 16*this.scale, 34*this.scale, this.scale, type, this, label);
+    this.sockets.push(socket);
+    return this.sockets;
   }
 }
 class ConditionNode extends Node {
@@ -553,14 +633,15 @@ class ConditionNode extends Node {
     super(x, y, width, height, scale);
 
     this.setName("If");
+    this.setClass(Node.Class.BASIC);
 
     this.parentSVGEngine = svgEngine;
 
-    this.addSocket(InputSocketComponent.Type.BOOLEAN);
-    this.addPlug(OutputPlugComponent.Type.CONNECTOR, type); // if block
-    this.addPlug(OutputPlugComponent.Type.CONNECTOR, type); // else block
-
-    // this.checkbox = new Checkbox((height - 18)*this.scale);
+    this.addSocket(); // connector in/out-puts
+    this.addPlug("Met", type); // if block
+    this.addPlug("Not met", type); // else block
+    // data inputs
+    this.addInputSocket(InputSocketComponent.Type.BOOLEAN, "Condition");
 
     return this;
   }
@@ -785,9 +866,26 @@ class Text {
     this.isComponent = true;
 
     this.container = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    this.updateAttributes();
   }
-  static measureText() {
+  static getCSSStyle(el, prop) {
+    return window.getComputedStyle(el, null).getPropertyValue(prop);
+  }
+  static getCanvasFont(el=document.body) {
+    const fontWeight = Text.getCSSStyle(el, 'font-weight') || 'normal';
+    const fontSize = Text.getCSSStyle(el, 'font-size') || '16px';
+    const fontFamily = Text.getCSSStyle(el, 'font-family') || 'Times New Roman';
 
+    return `${fontWeight} ${fontSize} ${fontFamily}`;
+  }
+  static measureText(text, font=Text.getCanvasFont()) {
+    window.openvs_canvas = window.openvs_canvas || (window.openvs_canvas = document.createElement("canvas"));
+    const context = window.openvs_canvas.getContext("2d");
+    context.font = font;
+    const metrics = context.measureText(text);
+    metrics.fontHeight = metrics.fontBoundingBoxAscent + metrics.fontBoundingBoxDescent;
+    metrics.height = metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent;
+    return metrics;
   }
   setColor(color) {
     this.color = color;
@@ -1139,7 +1237,17 @@ class Rectangle {
     this.updateAttributes();
   }
 }
-class Checkbox {
+class SVGCheckbox {
+  constructor(x, y, scale) {
+    this.x = x;
+    this.y = y;
+    this.scale = scale;
+
+    
+    return this;
+  }
+}
+class HTMLCheckbox {
   constructor(x, y, scale) {
     this.x = x;
     this.y = y;

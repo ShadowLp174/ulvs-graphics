@@ -14,6 +14,7 @@ Concept art by Alex_Sour
 
 ## TODOs
 
+- Drawable comments
 - Finish Condition nodes
 - "Code Blocks" Multiple Nodes snapling together
 - Panning right click; Selecting left click
