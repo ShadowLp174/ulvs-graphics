@@ -209,7 +209,7 @@ class OutputPlugComponent extends Component {
     this.initConnector();
     this.elements.push({ element: this.oCircle, render: (el) => el.createSVGElement() });
 
-    this.oT = new RoundedTriangleComponent(0, -1*this.scale, 90, 1 * this.scale); // the white triangle
+    this.oT = new RoundedTriangleComponent(0, 2.5*this.scale, 90, 1 * this.scale); // the white triangle
     this.oT.setColor("white");
     this.elements.push({ element: this.oT, render: (el) => el.createSVGElement() });
 
@@ -282,6 +282,12 @@ class OutputPlugComponent extends Component {
     });
     return sockets;
   }
+  setColor(c) {
+    this.color = c;
+    this.oCircle.setColor(c);
+    this.oT.setStroke(c)
+    this.oT.setColor("transparent");
+  }
   prepareSnap(connectable) {
     this.snapping = true;
     const socket = connectable.socket;
@@ -304,6 +310,7 @@ class OutputPlugComponent extends Component {
         socket.moveTo(pos);
       });
     });
+    socket.connect();
     this.connected.push(this.activeConnector);
     socket.cCircle.setRadius(8 * socket.scale); // reset socket proportions
     this.dragging = false;
@@ -425,28 +432,50 @@ class InputSocketComponent extends Component {
     }
 
     // only draw this when creating a connection connector
-    this.cT = new RoundedTriangleComponent(22*this.scale, -1*this.scale, 90, 1 * this.scale);
+    this.cT = new RoundedTriangleComponent(22*this.scale, 2.5 * this.scale, 90, 1 * this.scale);
     this.cT.setColor(this.color);
     this.elements.push({ element: this.cT, render: (el) => el.createSVGElement() });
 
     return this;
   }
+  connect() {
+    /*if (!this.checkbox) return;
+    this.box.container.style.display = "none";
+    this.offset = 0;
+    this.relocateLabels();*/
+  }
+  disconnect() {
+    /*if (!this.checkbox) return;
+    this.box.container.style.display = "block";
+    this.offset = 23;
+    this.relocateLabels();*/
+  }
+  relocateLabels() {
+    this.text.setPosition({
+      x: (21 + this.offset) * this.scale,
+      y: metrics.height + 3 * this.scale
+    });
+    this.typeLabel.setPosition({
+      x: (28 + this.offset + metrics.width + typeMetrics.width)*this.scale,
+      y: typeMetrics.height + 8 * this.scale
+    });
+  }
   initType() {
-    const offset = (this.checkbox) ? 23 : 0;
+    this.offset = (this.checkbox) ? 23 : 0;
     if (this.checkbox) {
       this.box = new SVGCheckbox(21 * this.scale, 0, this.scale, false, (state) => {
-
+        if (this.node.simulate) this.node.simulate(state); // change the opacity of the plugs
       });
       this.elements.push({ element: this.box });
     }
 
     let metrics = Text.measureText(this.label);
-    this.text = new Text((21 + offset) * this.scale, metrics.height + 3 * this.scale, this.label, this.scale);
+    this.text = new Text((21 + this.offset) * this.scale, metrics.height + 3 * this.scale, this.label, this.scale);
     this.text.setColor("white");
     this.elements.push({ element: this.text, render: (el) => el.createSVGElement() });
 
     let typeMetrics = Text.measureText(InputSocketComponent.TypeLabel[this.type]);
-    this.typeLabel = new Text((28 + offset + metrics.width + typeMetrics.width)*this.scale, typeMetrics.height + 8 * this.scale, InputSocketComponent.TypeLabel[this.type], 0.7 * this.scale);
+    this.typeLabel = new Text((28 + this.offset + metrics.width + typeMetrics.width)*this.scale, typeMetrics.height + 8 * this.scale, InputSocketComponent.TypeLabel[this.type], 0.7 * this.scale);
     this.typeLabel.setColor(this.color);
     this.elements.push({ element: this.typeLabel, render: (el) => el.createSVGElement() });
   }
@@ -606,8 +635,8 @@ class Node extends Component {
     let className = Node.ClassName[c];
     let classColor = Node.ClassColor[c];
     this.hRect.setColor(classColor);
-    let metrics = Text.measureText(className);
-    this.hText = new Text(this.tw - metrics.width / 2 * this.scale, 26 * this.scale, className, 0.8 * this.scale);
+    this.hText = new Text(this.tw - (5 * this.scale), 21 * this.scale, className, 1 * this.scale, Text.Anchor.END);
+    this.hText.fontSize = 12 * this.scale;
     this.hText.setColor("white");
     this.elements.push({ element: this.hText, render: (el) => el.createSVGElement() });
   }
@@ -618,7 +647,7 @@ class Node extends Component {
   }
   addPlug(label, style) { // TODO: dynamically increase proportions when adding new plugs/inputs
     let metrics = Text.measureText(label);
-    const text = new Text(this.tw - (metrics.width + 34.5) * this.scale, (this.th * 0.15) + 26*this.scale + (36 * this.plugs.length + metrics.height) * this.scale, label, this.scale);
+    const text = new Text(this.tw - (34) * this.scale, (this.th * 0.15) + 26*this.scale + (36 * this.plugs.length + metrics.height) * this.scale, label, this.scale, Text.Anchor.END);
     text.setColor("white");
     this.labels.push(text);
 
@@ -627,11 +656,6 @@ class Node extends Component {
     return this.plug;
   }
   addInputSocket(type, label) {
-    let metrics = Text.measureText(label);
-    const text = new Text(15 * this.scale, this.th - (21) * this.scale + metrics.height + this.scale, label, this.scale);
-    text.setColor("white");
-    //this.labels.push(text);
-
     const socket = new InputSocketComponent((-8 * this.scale), this.th - (23) * this.scale, 16*this.scale, 34*this.scale, this.scale, type, this, label);
     this.sockets.push(socket);
     return this.sockets;
@@ -653,6 +677,13 @@ class ConditionNode extends Node {
     this.addInputSocket(InputSocketComponent.Type.BOOLEAN, "Condition");
 
     return this;
+  }
+  simulate(state) {
+    this.labels[1 - state].setColor("rgba(255, 255, 255, 1)");
+    this.labels[state].setColor("rgba(255, 255, 255, 0.3)");
+    this.plugs[1 - state].setColor("rgba(255, 255, 255, 1)");
+    this.plugs[1 - state].oT.setColor("white");
+    this.plugs[state].setColor("rgba(255, 255, 255, 0.3)");
   }
 }
 class Attachment {
@@ -741,6 +772,7 @@ class Connector extends Component {
     this.plug.interactions.initListeners(el, () => {
       this.plug.dragging = true;
       this.plug.snapping = false;
+      this.connectedTo.disconnect();
       this.connectedTo = { id: null };
       this.plug.connected = this.plug.connected.splice(this.plug.connected.findIndex(el => el.id == this.id), 1);
       this.plug.initSnapping();
@@ -867,15 +899,28 @@ class ConnectorManager {
   }
 }
 class Text {
-  constructor(x, y, text, scale) {
+  static Anchor = {
+    START: "start",
+    MIDDLE: "middle",
+    END: "end"
+  }
+  constructor(x, y, text, scale, anchor=Text.Anchor.START) {
     this.x = x;
     this.y = y;
     this.txt = text;
     this.scale = scale;
+    this.anchor = anchor;
     this.isComponent = true;
 
     this.container = document.createElementNS("http://www.w3.org/2000/svg", "text");
     this.updateAttributes();
+  }
+  set fontSize(s) {
+    this.fs = s;
+    this.container.style.fontSize = s + "px";
+  }
+  get fontSize() {
+    return this.fs;
   }
   static getCSSStyle(el, prop) {
     return window.getComputedStyle(el, null).getPropertyValue(prop);
@@ -903,6 +948,7 @@ class Text {
   updateAttributes() {
     const text = this.container;
     text.innerHTML = this.txt;
+    text.style.textAnchor = this.anchor;
     text.setAttribute("x", this.x);
     text.setAttribute("y", this.y);
     if (this.color) text.setAttribute("fill", this.color);
@@ -1068,6 +1114,15 @@ class PathBuilder {
       content: " " + x1 + " " + y1 + " " + x2 + " " + y2 + " " + x + " " + y,
       id: this.uid()
     }
+    this.instructions.push(instruction);
+    return instruction.id;
+  }
+  closePath() {
+    const instruction = {
+      command: "Z",
+      content: "",
+      id: this.uid()
+    };
     this.instructions.push(instruction);
     return instruction.id;
   }
@@ -1588,111 +1643,41 @@ class SVGEngine {
   }
 }
 class RoundedTriangle {
-  constructor(x, y, cd, width) {
-    this.ox = x;
-    this.oy = y;
-    this.x = x;
-    this.y = y;
+  constructor(borderRadius=2, width) {
     this.width = width;
     this.height = (width / 2) * Math.sqrt(3);
-    this.cd = cd; // corner distance, distance from the corner of the triangle where the curve starts
-    this.cornerHeight = (cd / 2) * Math.sqrt(3);
-    this.strokeWidth = 3;
+    this.cd = borderRadius; // corner distance, distance from the corner of the triangle where the curve starts
+    this.strokeWidth = this.cd * 10;
 
-    this.container = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    this.builder = new PathBuilder();
+    this.builder.moveTo(this.cd / 2, this.height - this.cd / 2);
+    this.builder.lineTo(this.width - this.cd / 2, this.height - this.cd / 2);
+    this.builder.lineTo(this.width / 2, this.cd / 2);
+    this.builder.closePath();
+
     this.path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    this.container.appendChild(this.path);
-    this.stroke = "white";
-    this.path.setAttribute("stroke", this.stroke);
+    this.path.setAttribute("d", this.builder.build());
     this.path.setAttribute("stroke-width", this.strokeWidth);
-    this.path.setAttribute("fill", "white");
-
-    y += cd + this.cornerHeight; // some correctins
-    x += cd;
-
-    let cT = this.createCorner(x + width / 2, y - cd, -1, -1); // create top corner:
-    // create line from top to bottom right corner:
-    // the moveto is just for correction
-    let rl = "m " + cd + " 0 l " + (width / 2 - (cd / 2)) + " " + (this.height - cd);
-    let cBr = " " + this.createCorner(cd / 2, this.cornerHeight, 1, 1, true); // bottom right corner:
-    let bl = "m " + (-cd / 2) + " " + this.cornerHeight + " l " + (-(width - cd)) + " 0"; // line to last corner:
-    let cBl = " " + this.createCorner(-cd, 0, -1, 1, true); // last corner
-    let ll = "m 0 0 l " + (width / 2 - (cd / 2.3)) + " " + (-(this.height - (this.cornerHeight))) + " Z"; // last line with close command
-
-    this.createFilling([ // I have no idea what I did here ._.
-      {
-        x: x + width / 2 - cd / 2,
-        y: y - cd - 2
-      },
-      {
-        x: x + width / 2 + cd / 2,
-        y: y - cd - 2
-      },
-      {
-        x: x + width,
-        y: y + this.height - this.cornerHeight - cd * 2
-      },
-      {
-        x: x + width - cd / 2,
-        y: y + this.height - cd*2 - this.strokeWidth / 2
-      },
-      {
-        x: x + cd / 2,
-        y: y + this.height - cd*2 - this.strokeWidth / 2
-      },
-      {
-        x: x,
-        y: y + this.height - this.cornerHeight - cd*2
-      }
-    ]); // work around for the path not filling correctly :/... idk I'm a newbie at pths
-    this.container.appendChild(this.filling);
-    this.filling.setAttribute("fill", "white");
-
-    this.d = cT + rl + cBr + bl + cBl + ll;
-    this.path.setAttribute("d", this.d);
-  }
-  createFilling(corners) {
-    this.filling = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-    let p = "";
-    corners.forEach((c) => {
-      p += c.x + "," + c.y + " ";
-    });
-    this.filling.setAttribute("points", p);
-    return this.filling;
-  }
-  createCorner(x, y, rot, yDir, relativeCoords=false) {
-    let cd = this.cd;
-    cd = cd * rot; // rot == -1 || 1; -1 == "left"; 1 == "right"
-    let cmd = (relativeCoords) ? "m" : "M";
-    let d = "";
-    if (yDir == 1) { // horizontal
-      d = cmd + " " + (x - cd) + " " + y + " ";
-      let height = (cd / 2) * Math.sqrt(3) * rot;
-      d += "s " + cd + " 0, " + (cd / 2) + " " + (-height) + " ";
-    } else { // vertical
-      d = cmd + " " + (x - (cd / 2)) + " " + (y + cd) + " ";
-      d += "s " + (cd / 2) + " " + cd + ", " + cd + " 0";
-    }
-    return d;
+    this.path.style.strokeLinejoin = "round";
   }
 }
 class RoundedTriangleComponent extends RoundedTriangle {
   constructor(x, y, rot, scale) {
-    super(1, 1, 3, 13);
-    this.x = x - 1;
-    this.y = y - 1;
+    super(0.6, 13);
+    this.x = x;
+    this.y = y;
     this.rot = rot;
     this.scale = scale;
     this.isComponent = true;
 
-    this.rx = 1; // relative coords of the path/polygon
-    this.ry = 1;
-
-    const parentContainer = this.container;
     this.container = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     this.container.style.overflow = "overlay";
-    this.container.appendChild(parentContainer);
+    this.container.appendChild(this.path);
+    this.color = "white";
+    this.stroke = "white";
     this.updateAttributes();
+
+    console.log(this.path);
 
     return this;
   }
@@ -1709,35 +1694,20 @@ class RoundedTriangleComponent extends RoundedTriangle {
     this.color = color;
     this.updateAttributes();
   }
-  setStroke(opts) {
-    this.stroke = opts.stroke;
-    this.strokeWidth = opts.width;
+  setStroke(color) {
+    this.stroke = color;
     this.updateAttributes();
   }
   updateAttributes() {
     const path = this.path;
-    const filling = this.filling;
     const svg = this.container;
 
     svg.setAttribute("x", this.x);
     svg.setAttribute("y", this.y);
 
-    if (this.color) {
-      path.setAttribute("fill", this.color);
-      filling.setAttribute("fill", this.color);
-    }
-    if (this.stroke) {
-      path.setAttribute("stroke", this.stroke);
-      filling.setAttribute("stroke", this.stroke);
-    }
-    if (this.strokeWidth) {
-      path.setAttribute("stroke-width", this.strokeWidth);
-      filling.setAttribute("stroke-width", this.strokeWidth);
-    }
-    if (this.rot || this.scale) {
-      path.setAttribute("transform", ((this.scale) ? "scale(" + this.scale + ") " : " ") + ((this.rot) ? "rotate(" + this.rot + "," + (this.rx + this.width/2) + "," + (this.ry + this.height/2) + ")" : ""));
-      filling.setAttribute("transform", ((this.scale) ? "scale(" + this.scale + ") " : " ") + ((this.rot) ? "rotate(" + this.rot + "," + (this.rx +this.width/2) + "," + (this.ry + this.height/2) + ")" : ""));
-    }
+    if (this.color) path.setAttribute("fill", this.color);
+    if (this.stroke) path.setAttribute("stroke", this.stroke);
+    if (this.rot || this.scale) path.setAttribute("transform", ((this.scale) ? "scale(" + this.scale + ") " : " ") + ((this.rot) ? "rotate(" + this.rot + "," + (this.width/2) + "," + (this.height/2) + ")" : ""));
   }
   createSVGElement() {
     return this.container;
@@ -1747,6 +1717,22 @@ class RoundedTriangleComponent extends RoundedTriangle {
     this.updateAttributes();
   }
 }
+
+const builder = new PathBuilder();
+builder.moveTo(20, 120);
+builder.lineTo(120, 120);
+builder.lineTo(70, 20);
+builder.closePath();
+
+const path = new Path();
+path.path = builder.build();
+path.setColor("white");
+path.setStroke({
+  stroke: "white",
+  width: 10
+});
+path.container.style.strokeLinejoin = "round";
+//engine.element.appendChild(path.container);
 
 document.body.style.height = window.innerHeight + "px";
 document.body.style.width = window.innerWidth + "px";
@@ -1767,8 +1753,6 @@ engine.addComponent(condition);
 
 const condition1 = new ConditionNode(250, 250, 200, 150, 1, engine, "line");
 engine.addComponent(condition1);
-
-const r = new Rectangle(150, 150, 50, 50, true);
 
 document.body.style.overflow = "hidden";
 
