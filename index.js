@@ -918,8 +918,6 @@ class StartEventNode extends Node {
     this.addPlug("Start", type);
 
     return this;
-=======
->>>>>>> 65f5f954f4e094a185f23b61fc48eb928f7f008f
   }
 }
 class Attachment {
