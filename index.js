@@ -647,7 +647,11 @@ class Node extends Component {
     this.id = uid();
     this.parentSVGEngine = svgEngine;
 
+<<<<<<< HEAD
     this.shadows = SVGEngine.createShadowFilter(0, 1); // create the shadow defs element
+=======
+    this.shadows = SVGEngine.createShadowFilter(1, 1); // create the shadow defs element
+>>>>>>> 65f5f954f4e094a185f23b61fc48eb928f7f008f
     this.shadowElement = this.shadows.element;
     this.elements.push({ element: this.shadows.element, render: (el) => el });
 
@@ -906,6 +910,7 @@ class AdditionNode extends Node {
     this.addOutputPlug(OutputPlugComponent.Type.NUMBER, "Result", type);
 
     return this;
+<<<<<<< HEAD
   }
 }
 class StartEventNode extends Node {
@@ -918,6 +923,8 @@ class StartEventNode extends Node {
     this.addPlug("Start", type);
 
     return this;
+=======
+>>>>>>> 65f5f954f4e094a185f23b61fc48eb928f7f008f
   }
 }
 class Attachment {
@@ -2094,6 +2101,7 @@ engine.addComponent(addition);
 const screen = new ScreenSizeNode(500, 100, 1, engine, "bezier");
 engine.addComponent(screen);
 
+<<<<<<< HEAD
 const start = new StartEventNode(100, 100, 1, engine, "bezier");
 engine.addComponent(start);
 
@@ -2101,6 +2109,8 @@ engine.addComponent(start);
 console.log(select);
 engine.addComponent(select);*/
 
+=======
+>>>>>>> 65f5f954f4e094a185f23b61fc48eb928f7f008f
 document.body.style.overflow = "hidden";
 
 window.addEventListener("mousewheel", (e) => {
