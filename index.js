@@ -230,24 +230,33 @@ class UserInteractionManager {
 class OutputPlugComponent extends Component {
   static Type = {
     BOOLEAN: "bool",
-    CONNECTOR: "connect"
+    NUMBER: "num",
+    INTEGER: "int",
+    CONNECTOR: "connect",
+    ANY: "any"
   }
   static ColorMapping = {
     bool: "#a44747",
-    connect: "#ffffff"
+    connect: "#ffffff",
+    num: "#427fbd",
+    int: "#427fbd"
   }
   static TypeLabel = {
-    bool: "BOOL"
+    bool: "BOOL",
+    num: "NUM",
+    int: "INT"
   }
   static ConnectorColor = {
     bool: "#a44747",
-    connect: "#808080"
+    connect: "#808080",
+    num: "#427fbd",
+    int: "#427fbd"
   }
   constructor(x, y, width, height, scale, type, engine, node, styleType="", label="") {
     super(x, y, width, height, scale);
 
     this.styleType = styleType; // the style of the connector like Bezier, or Line
-    this.type = type; // TODO: the type of the plug;
+    this.type = type; // the type of the plug
     this.node = node; // the node the plug is attached to
     this.connected = false;
     this.interactions = new UserInteractionManager(); // user interactions
@@ -285,12 +294,12 @@ class OutputPlugComponent extends Component {
     });
 
     let metrics = Text.measureText(this.label);
-    this.text = new Text(13 * this.scale, (metrics.height + 2.5) * this.scale, this.label, this.scale, Text.Anchor.END);
+    this.text = new Text(13 * this.scale, (2.5) * this.scale, this.label, this.scale, Text.Anchor.END, Text.VerticalAnchor.TOP);
     this.text.setColor("white");
     this.elements.push({ element: this.text });
 
     let typeMetrics = Text.measureText(OutputPlugComponent.TypeLabel[this.type]);
-    this.typeLabel = new Text((13 - metrics.width) * this.scale, (typeMetrics.height + 2) * this.scale, OutputPlugComponent.TypeLabel[this.type], this.scale, Text.Anchor.END);
+    this.typeLabel = new Text((13 - metrics.width) * this.scale, (2) * this.scale, OutputPlugComponent.TypeLabel[this.type], this.scale, Text.Anchor.END, Text.VerticalAnchor.TOP);
     this.typeLabel.container.style.fontSize = (9 * this.scale) + "px";
     this.typeLabel.setColor(this.color);
     this.elements.push({ element: this.typeLabel });
@@ -318,6 +327,9 @@ class OutputPlugComponent extends Component {
   distance(x, y, x1, y1) { // get the distance between two points x,y and x1,y1
     return Math.sqrt(Math.pow(x - x1, 2) + Math.pow(y - y1, 2));
   }
+  setConnectorType(type) {
+    this.styleType = type;
+  }
   initSnapping() {
     this.sockets = this.getSockets();
     this.connectables = [];
@@ -343,8 +355,11 @@ class OutputPlugComponent extends Component {
         if (!(c instanceof InputSocketComponent)) return;
         // InputSocket selection ruleset
         if (c.node == this.node) return; // don't allow self-connections
+        if (c.type != InputSocketComponent.Type.CONNECTOR) {
+          if (c.connected) return;
+        }
         if (this.connected.findIndex(el => el.connectedTo.id == c.id) >= 0) return; // disable duplicate connections
-        if (c.type !== this.type) return; // only connect to sockets of the same type
+        if (!Connector.typesCompatible(c.type, this.type)) return; // only connect to sockets of the same type
 
         sockets.push(c);
         return;
@@ -387,12 +402,15 @@ class OutputPlugComponent extends Component {
       y: this.snappingSocket.coords.y + 8 * socket.scale
     });
     this.activeConnector.connectedTo = this.snappingSocket.socket;
-    socket.node.addEventListener("move", () => {
+    this.activeConnector.connectedNode = this.snappingSocket.socket.node.id;
+    socket.connected = true;
+    socket.node.addEventListener("move", (e) => {
       if (this.connected.length == 0 || !this.connected) return; // only execute if the node is currently connected
       const pos = this.getAbsCoords(socket.cCircle.container);
       pos.x += socket.cCircle.radius * socket.scale;
       pos.y += socket.cCircle.radius * socket.scale;
       this.connected.forEach((socket) => {
+        if (socket.connectedNode != e.detail.node.id) return;
         socket.moveTo(pos);
       });
     });
@@ -418,7 +436,9 @@ class OutputPlugComponent extends Component {
       const pos = this.getAbsCoords(this.oCircle.container);
       pos.x += this.oCircle.radius * this.scale;
       pos.y += this.oCircle.radius * this.scale;
-      this.activeConnector.moveStartTo(pos);
+      this.connected.forEach(c => {
+        c.moveStartTo(pos);
+      });
     });
     this.interactions.initListeners(window, () => {}, (e) => {
       // move listener
@@ -488,14 +508,22 @@ class OutputPlugComponent extends Component {
 class InputSocketComponent extends Component {
   static Type = {
     BOOLEAN: "bool",
-    CONNECTOR: "connect"
+    CONNECTOR: "connect",
+    NUMBER: "num",
+    INTEGER: "int",
+    FLOAT: "float",
+    ANY: "any"
   }
   static ColorMapping = {
     bool: "#a44747",
-    connect: "#ffffff"
+    connect: "#ffffff",
+    num: "#427fbd",
+    int: "#427fbd"
   }
   static TypeLabel = {
-    bool: "BOOL"
+    bool: "BOOL",
+    num: "NUM",
+    int: "INT"
   }
   constructor(x, y, width, height, scale, type, node, label, checkbox=true) {
     super(x, y, width, height, scale);
@@ -504,7 +532,7 @@ class InputSocketComponent extends Component {
     this.node = node; // the node the socket is attached to
     this.label = label;
     this.id = uid();
-    this.checkbox = checkbox;
+    this.checkbox = (type === InputSocketComponent.Type.BOOLEAN) ? checkbox : false; // TODO: add an input for nums/strings
 
     this.color = InputSocketComponent.ColorMapping[type];
 
@@ -561,13 +589,13 @@ class InputSocketComponent extends Component {
 
     let metrics = Text.measureText(this.label);
     this.metrics = metrics;
-    this.text = new Text((21 + this.offset) * this.scale, (metrics.height + 3) * this.scale, this.label, this.scale);
+    this.text = new Text((21 + this.offset) * this.scale, (3) * this.scale, this.label, this.scale, Text.Anchor.START, Text.VerticalAnchor.TOP);
     this.text.setColor("white");
     this.elements.push({ element: this.text, render: (el) => el.createSVGElement() });
 
-    let typeMetrics = Text.measureText(InputSocketComponent.TypeLabel[this.type]);
+    let typeMetrics = Text.measureText(InputSocketComponent.TypeLabel[this.type], (9 * this.scale) + "px");
     this.typeMetrics = typeMetrics;
-    this.typeLabel = new Text((this.offset - 21 + metrics.width + typeMetrics.width)*this.scale, (typeMetrics.height + 2) * this.scale, InputSocketComponent.TypeLabel[this.type], this.scale);
+    this.typeLabel = new Text((this.offset + 21 + metrics.width)*this.scale, (2) * this.scale, InputSocketComponent.TypeLabel[this.type], this.scale, Text.Anchor.START, Text.VerticalAnchor.TOP);
     this.typeLabel.container.style.fontSize = (9 * this.scale) + "px";
     this.typeLabel.setColor(this.color);
     this.elements.push({ element: this.typeLabel, render: (el) => el.createSVGElement() });
@@ -606,7 +634,7 @@ class Node extends Component {
     event: "Events",
     deviceinfo: "Device Info"
   }
-  constructor(x, y, scale) {
+  constructor(x, y, scale, svgEngine) {
     let height = 37.5 * scale;
     let width = 200 * scale;
     super(x, y, width, height, scale);
@@ -616,7 +644,10 @@ class Node extends Component {
       header: "#8a5794"
     }
 
-    this.shadows = SVGEngine.createShadowFilter(1, 1); // create the shadow defs element
+    this.id = uid();
+    this.parentSVGEngine = svgEngine;
+
+    this.shadows = SVGEngine.createShadowFilter(0, 1); // create the shadow defs element
     this.shadowElement = this.shadows.element;
     this.elements.push({ element: this.shadows.element, render: (el) => el });
 
@@ -662,10 +693,18 @@ class Node extends Component {
 
     this.eventElem = document.createElement("span");
     this.events = {
-      move: new Event("move")
+      move: new CustomEvent("move", { detail: {node: this} })
     }
 
     return this;
+  }
+  setConnectorType(type) {
+    this.plugs.forEach((plug) => {
+      plug.setConnectorType(type);
+    });
+    this.outputPlugs.forEach((plug) => {
+      plug.setConnectorType(type);
+    });
   }
   addEventListener(event, cb) {
     return this.eventElem.addEventListener(event, cb);
@@ -731,7 +770,7 @@ class Node extends Component {
   }
   setName(name) {
     this.name = name;
-    this.nText = new Text(5*this.scale, 22*this.scale, name, this.scale);
+    this.nText = new Text(5*this.scale, 10*this.scale, name, this.scale, Text.Anchor.START, Text.VerticalAnchor.TOP);
     this.nText.setColor("white");
     this.elements.push({ element: this.nText, render: (el) => el.createSVGElement() });
   }
@@ -740,7 +779,7 @@ class Node extends Component {
     let className = Node.ClassName[c];
     let classColor = Node.ClassColor[c];
     this.hRect.setColor(classColor);
-    this.hText = new Text(this.tw - (5 * this.scale), 21 * this.scale, className, 1 * this.scale, Text.Anchor.END);
+    this.hText = new Text(this.tw - (5 * this.scale), 12 * this.scale, className, 1 * this.scale, Text.Anchor.END, Text.VerticalAnchor.TOP);
     this.hText.fontSize = 12 * this.scale;
     this.hText.setColor("white");
     this.elements.push({ element: this.hText, render: (el) => el.createSVGElement() });
@@ -762,7 +801,7 @@ class Node extends Component {
   }
   addPlug(label, style) {
     let metrics = Text.measureText(label);
-    const text = new Text(this.tw - (34) * this.scale, (38 * this.plugs.length + metrics.height) * this.scale, label, this.scale, Text.Anchor.END);
+    const text = new Text(this.tw - (34) * this.scale, (38 * this.plugs.length) * this.scale, label, this.scale, Text.Anchor.END, Text.VerticalAnchor.TOP);
     text.setColor("white");
     this.labels.push(text);
 
@@ -780,7 +819,7 @@ class Node extends Component {
     return this.plugs;
   }
   addInputSocket(type, label) {
-    const socket = new InputSocketComponent((-8 * this.scale), (0 * this.inputSockets.length) * this.scale, 16*this.scale, 34*this.scale, this.scale, type, this, label);
+    const socket = new InputSocketComponent((-8 * this.scale), (28 * this.inputSockets.length) * this.scale, 16*this.scale, 34*this.scale, this.scale, type, this, label);
 
     const currLength = Math.max(this.inputSockets.length, this.outputPlugs.length);
     this.inputSockets.push(socket);
@@ -793,7 +832,7 @@ class Node extends Component {
     return this.inputSockets;
   }
   addOutputPlug(type, label, style) {
-    const plug = new OutputPlugComponent(this.tw - (36 - 8) * this.scale, (38 * this.outputPlugs.length) * this.scale, 16, 34, this.scale, type, this.parentSVGEngine, this, style, label);
+    const plug = new OutputPlugComponent(this.tw - (36 - 8) * this.scale, (28 * this.outputPlugs.length) * this.scale, 16, 34, this.scale, type, this.parentSVGEngine, this, style, label);
 
     const currLength = Math.max(this.inputSockets.length, this.outputPlugs.length);
     this.outputPlugs.push(plug);
@@ -807,18 +846,16 @@ class Node extends Component {
 }
 class ConditionNode extends Node {
   constructor(x, y, scale, svgEngine, type="") {
-    super(x, y, scale);
+    super(x, y, scale, svgEngine);
 
     this.setName("If");
     this.setClass(Node.Class.BASIC);
-
-    this.parentSVGEngine = svgEngine;
 
     this.addSocket(); // connector in/out-puts
     this.addPlug("Met", type); // if block
     this.addPlug("Not met", type); // else block
     // data inputs
-    this.addInputSocket(InputSocketComponent.Type.BOOLEAN, "Condition");
+    this.addInputSocket(InputSocketComponent.Type.BOOLEAN, "Condition", type);
 
     return this;
   }
@@ -832,9 +869,7 @@ class ConditionNode extends Node {
 }
 class IsMobileNode extends Node {
   constructor(x, y, scale, svgEngine, type="") {
-    super(x, y, scale);
-
-    this.parentSVGEngine = svgEngine;
+    super(x, y, scale, svgEngine);
 
     this.setName("Is Mobile");
     this.setClass(Node.Class.DEVICEINFO);
@@ -842,6 +877,47 @@ class IsMobileNode extends Node {
 
     this.addOutputPlug(OutputPlugComponent.Type.BOOLEAN, "Is Mobile", type);
 
+    return this;
+  }
+}
+class ScreenSizeNode extends Node {
+  constructor(x, y, scale, svgEngine, type="") {
+    super(x, y, scale, svgEngine);
+
+    this.setName("Screen Size");
+    this.setClass(Node.Class.DEVICEINFO);
+
+    this.addOutputPlug(OutputPlugComponent.Type.INTEGER, "Pixels X", type);
+    this.addOutputPlug(OutputPlugComponent.Type.INTEGER, "Pixels Y", type);
+
+    return this;
+  }
+}
+class AdditionNode extends Node {
+  constructor(x, y, scale, svgEngine, type="") {
+    super(x, y, scale, svgEngine);
+
+    this.setName("Add (Math)");
+    this.setClass(Node.Class.BASIC);
+
+    this.addInputSocket(InputSocketComponent.Type.NUMBER,"A", type);
+    this.addInputSocket(InputSocketComponent.Type.NUMBER,"B", type);
+
+    this.addOutputPlug(OutputPlugComponent.Type.NUMBER, "Result", type);
+
+    return this;
+  }
+}
+class StartEventNode extends Node {
+  constructor(x, y, scale, svgEngine, type="") {
+    super(x, y, scale, svgEngine);
+
+    this.setName("Start");
+    this.setClass(Node.Class.EVENT);
+
+    this.addPlug("Start", type);
+
+    return this;
   }
 }
 class Attachment {
@@ -896,6 +972,33 @@ class NodeDragAttachment extends Attachment {
   }
 }
 class Connector extends Component {
+  static typesCompatible(input, output) {
+    // input == the socket
+    // output == the plug
+    if (input == InputSocketComponent.Type.ANY) return true;
+    if (input == output) return true;
+    const compatible = {
+      [InputSocketComponent.Type.NUMBER]: [
+        InputSocketComponent.Type.INTEGER,
+        InputSocketComponent.Type.FLOAT
+      ]
+    };
+    if (!compatible[input]) return false;
+    if (compatible[input].includes(output)) return true;
+    return false;
+  }
+  switchType(type) {
+    const desired = new (ConnectorManager.getConnector(type))(this.plug, this.currMousePos, this.absCoords, this.scale, this.color);
+    desired.moveTo(this.currMousePos);
+    desired.moveStartTo(this.startPos);
+    desired.elements.forEach(e => {
+      this.container.appendChild(e.render(e.element));
+    });
+    this.desired = desired;
+    this.sCircle.container.remove();
+    this.line.container.remove();
+    this.eCircle.container.remove();
+  }
   constructor(plug, mousePos, absPlugCoords, scale) {
     const startPos = absPlugCoords; // component stuff
     let x = startPos.x + 8 * scale;
@@ -904,10 +1007,13 @@ class Connector extends Component {
     let height = mousePos.y - y;
     super(x, y, width, height, scale);
 
+    console.log(this);
+
     this.plug = plug;
     this.currMousePos = mousePos;
     this.absCoords = absPlugCoords;
     this.id = uid();
+    this.startPos = { x: this.x, y: this.y };
 
     return this;
   }
@@ -916,9 +1022,12 @@ class Connector extends Component {
     return;
   }
   moveTo(mousePos) {
+    if (this.desired) return this.desired.moveTo(mousePos);
     this.currMousePos = mousePos;
   }
   moveStartTo(mousePos) {
+    if (this.desired) return this.desired.moveStartTo(mousePos);
+    this.startPos = mousePos;
     this.setPosition(mousePos); // relocate svg container
   }
   attachStartListener(el) {
@@ -932,6 +1041,7 @@ class Connector extends Component {
       this.plug.snapping = false;
       this.connectedTo.disconnect();
       this.connectedTo = { id: null };
+      this.connectedNode = null;
       this.plug.connected = this.plug.connected.splice(this.plug.connected.findIndex(el => el.id == this.id), 1);
       this.plug.initSnapping();
       this.plug.activeConnector = this;
@@ -962,14 +1072,14 @@ class BezierConnector extends Connector {
     this.pathBuilder.moveTo(0, 0);
     this.pathBuilder.cubicCurve(end.x / 2, 0, end.x / 2, end.y, end.x, end.y);
     this.d = this.pathBuilder.build();
-    this.path = new Path();
-    this.path.path = this.d;
-    this.path.setColor("transparent");
-    this.path.setStroke({
+    this.line = new Path();
+    this.line.path = this.d;
+    this.line.setColor("transparent");
+    this.line.setStroke({
       stroke: this.color,
       width: 3 * this.scale
     });
-    this.group.addComponent(this.path);
+    this.group.addComponent(this.line);
 
     this.eCircle = new Circle(end.x, end.y, 6 * this.scale, false);
     this.eCircle.setColor(this.color);
@@ -984,7 +1094,7 @@ class BezierConnector extends Connector {
     this.pathBuilder.clear();
     this.pathBuilder.moveTo(0, 0);
     this.pathBuilder.cubicCurve(end.x / 2, 0, end.x / 2, end.y, end.x, end.y);
-    this.path.path = this.pathBuilder.build();
+    this.line.path = this.pathBuilder.build();
     this.eCircle.setPosition({ x: end.x, y: end.y});
   }
   moveTo(mousePos) {
@@ -1065,15 +1175,22 @@ class Text {
     MIDDLE: "middle",
     END: "end"
   }
-  constructor(x, y, text, scale, anchor=Text.Anchor.START) {
+  static VerticalAnchor = {
+    TOP: "hanging",
+    MIDDLE: "middle",
+    BOTTOM: "auto"
+  }
+  constructor(x, y, text, scale, anchor=Text.Anchor.START, vAnchor=Text.VerticalAnchor.BOTTOM) {
     this.x = x;
     this.y = y;
     this.txt = text;
     this.scale = scale;
     this.anchor = anchor;
+    this.vAnchor = vAnchor;
     this.isComponent = true;
 
     this.container = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    this.container.style.userSelect = "text";
     this.updateAttributes();
   }
   set fontSize(s) {
@@ -1110,6 +1227,7 @@ class Text {
     const text = this.container;
     text.innerHTML = this.txt;
     text.style.textAnchor = this.anchor;
+    text.style.dominantBaseline = this.vAnchor; // the vertical alignment
     text.setAttribute("x", this.x);
     text.setAttribute("y", this.y);
     if (this.color) text.setAttribute("fill", this.color);
@@ -1481,6 +1599,39 @@ class Rectangle {
     this.updateAttributes();
   }
 }
+class SVGSelect extends Component {
+  constructor(x, y, width, scale) {
+    super(x, y, width, 18, scale);
+
+    this.bgRect = new Rectangle(0, 0, this.tw, this.th, true, 3);
+    this.bgRect.setColor("#121212");
+    this.bgRect.setStroke({
+      color: "#0f0f0f",
+      width: 1
+    });
+    this.elements.push({ element: this.bgRect });
+
+    this.builder = new PathBuilder();
+    this.builder.moveTo(this.tw - 10, 7);
+    this.builder.lineTo(3, 4, true);
+    this.builder.lineTo(3, -4, true);
+    this.path = new Path();
+    this.path.path = this.builder.build();
+    this.path.setColor("transparent");
+    this.path.setStroke({
+      stroke: "#808080",
+      width: 1
+    });
+    this.path.container.style.strokeLinejoin = "round";
+    this.path.container.style.strokeLinecap = "round";
+    this.elements.push({ element: this.path });
+
+    this.container.addEventListener("click", () => {
+    });
+
+    return this;
+  }
+}
 class SVGCheckbox extends Component {
   constructor(x, y, scale, checked=false, clickCallback=()=>{}) {
     super(x, y, 18, 18, scale);
@@ -1493,8 +1644,8 @@ class SVGCheckbox extends Component {
     this.bgRect = new Rectangle(0, 0, this.tw, this.th, true, 3);
     this.bgRect.setColor("#121212");
     this.bgRect.setStroke({
-      stroke: "#0f0f0f",
-      width: 2
+      color: "#0f0f0f",
+      width: 1
     });
     this.elements.push({ element: this.bgRect });
 
@@ -1676,12 +1827,12 @@ class RasterBackground {
     this.rad = this.dotRad * this.zoom;
 
     this.dots = [];
-    this.columns = Math.floor(this.width / this.distance);
-    this.rows = Math.floor(this.height / this.distance);
+    this.columns = Math.ceil(this.width / this.distance);
+    this.rows = Math.ceil(this.height / this.distance);
 
     for (let i = 0; i < this.columns; i++) {
       for (let j = 0; j < this.rows; j++) {
-        const circle = new Circle(this.distance * (i + 1), this.distance * (j + 1), this.rad, false);
+        const circle = new Circle(this.distance * (i), this.distance * (j), this.rad, false);
         circle.setColor(this.colors.dot);
         this.dots.push(circle);
       }
@@ -1706,6 +1857,7 @@ class SVGEngine {
     this.element.setAttribute("height", window.innerHeight);
     this.element.setAttribute("width", window.innerWidth);
     this.element.style.touchAction = "none";
+    this.element.style.userSelect = "none";
     this.element.id = "ULVS-Engine_" + (new Date()).getTime();
     document.body.appendChild(this.element);
 
@@ -1722,9 +1874,19 @@ class SVGEngine {
     this.top = SVGEngine.getAbsCoords(this.element).y;
     this.left = SVGEngine.getAbsCoords(this.element).x;
 
+    this.connTypeToggle = 1;
+
     this.generateStyles();
 
     return this;
+  }
+  toggleConnectorType() {
+    this.connTypeToggle = 1 - this.connTypeToggle;
+    let type = (this.connTypeToggle === 1) ? "bezier" : "line";
+    this.components.forEach((c) => {
+      if (!c.component instanceof Node) return;
+      c.component.setConnectorType(type);
+    });
   }
   generateStyles() {
     this.style = document.createElement("style");
@@ -1758,7 +1920,7 @@ class SVGEngine {
 
     return { x: left, y: top };
   }
-  static createShadowFilter(dx=3, dy=3, x=0, y=0, deviation=2) {
+  static createShadowFilter(dx=3, dy=3, x="-50%", y="-50%", deviation=3) {
     const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
 
     const filter = document.createElementNS("http://www.w3.org/2000/svg", "filter");
@@ -1920,11 +2082,24 @@ rect.setStroke({
 const condition = new ConditionNode(100, 100, 1, engine, "bezier");
 engine.addComponent(condition);
 
-const condition1 = new ConditionNode(250, 250, 1, engine, "line");
+const condition1 = new ConditionNode(250, 250, 1, engine, "bezier");
 engine.addComponent(condition1);
 
 const device = new IsMobileNode(300, 300, 1, engine, "bezier");
 engine.addComponent(device);
+
+const addition = new AdditionNode(300, 100, 1, engine, "bezier");
+engine.addComponent(addition);
+
+const screen = new ScreenSizeNode(500, 100, 1, engine, "bezier");
+engine.addComponent(screen);
+
+const start = new StartEventNode(100, 100, 1, engine, "bezier");
+engine.addComponent(start);
+
+/*const select = new SVGSelect(105, 120, 180, 1);
+console.log(select);
+engine.addComponent(select);*/
 
 document.body.style.overflow = "hidden";
 
