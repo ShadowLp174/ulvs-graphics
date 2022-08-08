@@ -304,6 +304,10 @@ class OutputPlugComponent extends Component {
     this.typeLabel.setColor(this.color);
     this.elements.push({ element: this.typeLabel });
   }
+  setOpacity(o) {
+    this.opacity = o;
+    this.container.style.opacity = o;
+  }
   attachEngine(e) {
     this.parentSVGEngine = e;
   }
@@ -631,7 +635,7 @@ class Node extends Component {
   }
   static ClassName = {
     basic: "Basic",
-    event: "Events",
+    event: "Event",
     deviceinfo: "Device Info"
   }
   constructor(x, y, scale, svgEngine) {
@@ -860,11 +864,10 @@ class ConditionNode extends Node {
     return this;
   }
   simulate(state) {
-    this.labels[1 - state].setColor("rgba(255, 255, 255, 1)");
+    this.labels[1 - state].setColor("white");
     this.labels[state].setColor("rgba(255, 255, 255, 0.3)");
-    this.plugs[1 - state].setColor("rgba(255, 255, 255, 1)");
-    this.plugs[1 - state].oT.setColor("white");
-    this.plugs[state].setColor("rgba(255, 255, 255, 0.3)");
+    this.plugs[1 - state].setOpacity(1);
+    this.plugs[state].setOpacity(0.3);
   }
 }
 class IsMobileNode extends Node {
@@ -1767,7 +1770,7 @@ class RasterBackground {
     this.bg.setColor(this.colors.background);
 
     //this.baseDist = this.width / 23;
-    this.dotRad = 5;
+    this.dotRad = 5 * 0.675;
 
     // panning support
     this.bgPos = { // pan position
@@ -2011,6 +2014,10 @@ class RoundedTriangleComponent extends RoundedTriangle {
     this.updateAttributes();
 
     return this;
+  }
+  setOpacity(o) {
+    this.opacity = 0;
+    this.container.style.opacity = o;
   }
   setScale(s) {
     this.scale = s;
