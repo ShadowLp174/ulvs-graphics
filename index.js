@@ -1042,6 +1042,7 @@ class Connector extends Component {
     this.plug.interactions.initListeners(el, () => {
       this.plug.dragging = true;
       this.plug.snapping = false;
+      this.connectedTo.connected = false;
       this.connectedTo.disconnect();
       this.connectedTo = { id: null };
       this.connectedNode = null;
@@ -2086,22 +2087,22 @@ rect.setStroke({
   width: 1
 });
 
-const condition = new ConditionNode(100, 100, 1, engine, "bezier");
+const condition = new ConditionNode(375, 124, 1, engine, "bezier");
 engine.addComponent(condition);
 
-const condition1 = new ConditionNode(250, 250, 1, engine, "bezier");
+const condition1 = new ConditionNode(704, 125, 1, engine, "bezier");
 engine.addComponent(condition1);
 
-const device = new IsMobileNode(300, 300, 1, engine, "bezier");
+const device = new IsMobileNode(55, 224, 1, engine, "bezier");
 engine.addComponent(device);
 
-const addition = new AdditionNode(300, 100, 1, engine, "bezier");
+const addition = new AdditionNode(361, 381, 1, engine, "bezier");
 engine.addComponent(addition);
 
-const screen = new ScreenSizeNode(500, 100, 1, engine, "bezier");
+const screen = new ScreenSizeNode(55, 347, 1, engine, "bezier");
 engine.addComponent(screen);
 
-const start = new StartEventNode(100, 100, 1, engine, "bezier");
+const start = new StartEventNode(56, 56, 1, engine, "bezier");
 engine.addComponent(start);
 
 /*const select = new SVGSelect(105, 120, 180, 1);
