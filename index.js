@@ -691,6 +691,7 @@ class Node extends Component {
     this.connectors.addComponent(this.plugs, (el) => {return el.map(e => e.createSVGElement());});
     this.body.addComponent(this.inputSockets, (el) => {return el.map(e => e.createSVGElement());});
     this.body.addComponent(this.outputPlugs, (el) => {return el.map(e => e.createSVGElement());});
+    this.connectionOffset = 0;
 
     this.dragHandler = new NodeDragAttachment();
     this.dragHandler.attach(this);
@@ -701,6 +702,9 @@ class Node extends Component {
     }
 
     return this;
+  }
+  clearConnections() {
+
   }
   setConnectorType(type) {
     this.plugs.forEach((plug) => {
@@ -774,9 +778,13 @@ class Node extends Component {
   }
   setName(name) {
     this.name = name;
-    this.nText = new Text(5*this.scale, 10*this.scale, name, this.scale, Text.Anchor.START, Text.VerticalAnchor.TOP);
-    this.nText.setColor("white");
-    this.elements.push({ element: this.nText, render: (el) => el.createSVGElement() });
+    if (!this.nText) {
+      this.nText = new Text(5*this.scale, 10*this.scale, name, this.scale, Text.Anchor.START, Text.VerticalAnchor.TOP);
+      this.nText.setColor("white");
+      this.elements.push({ element: this.nText, render: (el) => el.createSVGElement() });
+      return;
+    }
+    return this.nText.setText(name);
   }
   setClass(c) {
     this.class = c;
@@ -788,8 +796,12 @@ class Node extends Component {
     this.hText.setColor("white");
     this.elements.push({ element: this.hText, render: (el) => el.createSVGElement() });
   }
+  setConnectionOffset(delta) {
+    this.connectionOffset = delta;
+    this.bgRect.setHeight(this.bgRect.height +  delta);
+  }
   addSocket() {
-    const socket = new InputSocketComponent((-8 * this.scale), (36 * this.sockets.length) * this.scale, 16, 34, this.scale, InputSocketComponent.Type.CONNECTOR, this);
+    const socket = new InputSocketComponent((-8 * this.scale), (36 * this.sockets.length + this.connectionOffset) * this.scale, 16, 34, this.scale, InputSocketComponent.Type.CONNECTOR, this);
 
     const currLength = Math.max(this.plugs.length, this.sockets.length);
 
@@ -798,26 +810,26 @@ class Node extends Component {
     if (this.sockets.length > currLength) {
       let diff = this.sockets.length - currLength;
       this.bgRect.setHeight(this.bgRect.height + (36 * diff) * this.scale);
-      this.body.setPosition({ x: 0, y: this.body.y + (36 * diff) * this.scale });
+      this.body.setPosition({ x: 0, y: this.body.y + (36 * diff + this.connectionOffset) * this.scale });
     }
 
     return this.sockets;
   }
   addPlug(label, style) {
     let metrics = Text.measureText(label);
-    const text = new Text(this.tw - (34) * this.scale, (38 * this.plugs.length) * this.scale, label, this.scale, Text.Anchor.END, Text.VerticalAnchor.TOP);
+    const text = new Text(this.tw - (34) * this.scale, (38 * this.plugs.length + this.connectionOffset) * this.scale, label, this.scale, Text.Anchor.END, Text.VerticalAnchor.TOP);
     text.setColor("white");
     this.labels.push(text);
 
     const currLength = Math.max(this.plugs.length, this.sockets.length);
 
-    const plug = new OutputPlugComponent(this.tw - (36 - 8) * this.scale, (36 * this.plugs.length) * this.scale, 16, 34, this.scale, OutputPlugComponent.Type.CONNECTOR, this.parentSVGEngine, this, style);
+    const plug = new OutputPlugComponent(this.tw - (36 - 8) * this.scale, (36 * this.plugs.length + this.connectionOffset) * this.scale, 16, 34, this.scale, OutputPlugComponent.Type.CONNECTOR, this.parentSVGEngine, this, style);
     this.plugs.push(plug);
 
     if (this.plugs.length > currLength) {
       let diff = this.plugs.length - currLength;
       this.bgRect.setHeight(this.bgRect.height + (36 * diff) * this.scale);
-      this.body.setPosition({ x: 0, y: this.body.y + (36 * diff) * this.scale });
+      this.body.setPosition({ x: 0, y: this.body.y + (36 * diff + this.connectionOffset) * this.scale });
     }
 
     return this.plugs;
@@ -909,6 +921,43 @@ class AdditionNode extends Node {
     this.addOutputPlug(OutputPlugComponent.Type.NUMBER, "Result", type);
 
     return this;
+  }
+}
+class MathNode extends Node {
+  constructor(x, y, scale, svgEngine, type="") {
+    super(x, y, scale, svgEngine);
+
+    this.setName("Add"); // default math operation
+    this.setClass(Node.Class.BASIC);
+
+    this.cStyle = type; // connector design
+
+    this.setConnectionOffset(28 * this.scale);
+
+    this.opSelect = new SVGSelect(10 * this.scale, 42 * this.scale, 180, this.scale, (data) => this.switched(data));
+    this.opSelect.addItem("Add", "add-concat");
+    this.opSelect.addItem("Multiply", "multiply");
+    this.opSelect.selected.container.innerHTML = "Add";
+    this.elements.push({ element: this.opSelect });
+
+    this.setupBody("add-concat");
+
+    return this;
+  }
+  setupBody(id) {
+    this.clearConnections();
+    switch(id) {
+      case "add-concat":
+
+      break;
+      default:
+
+      break;
+    }
+  }
+  switched(item) {
+    this.type = item.selected;
+    this.setName(item.label);
   }
 }
 class StartEventNode extends Node {
@@ -1245,43 +1294,12 @@ class Text {
     this.scale = scale
     this.updateAttributes();
   }
+  setText(t) {
+    this.txt = t;
+    this.container.innerHTML = t;
+  }
   createSVGElement() {
     return this.container;
-  }
-}
-class Triangle {
-  constructor(x, y, width, height, rot, rounded) {
-    this.x = x;
-    this.y = y;
-    this.width = width;
-    this.height = height;
-    this.rot = rot;
-    this.rounded = rounded;
-    this.isComponent = true;
-
-    return this;
-  }
-  setColor(color) {
-    this.color = color;
-  }
-  setStroke(opts) {
-    this.stroke = opts.stroke;
-    this.strokeWidth = opts.width;
-  }
-  createSVGElement() {
-    const triangle = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-    let x = this.x;
-    let y = this.y;
-    triangle.setAttribute("points", x + "," + (y + this.height) + " " + (x + this.width) + "," + (y + this.height) + " " + (x + (this.width / 2)) + "," + y);
-    if (this.color) triangle.setAttribute("fill", this.color);
-    if (this.stroke) triangle.setAttribute("stroke", this.stroke);
-    if (this.strokeWidth) triangle.setAttribute("stroke-width", this.strokeWidth);
-    if (this.rot) triangle.setAttribute("transform", "rotate(" + this.rot + "," + (x + this.width / 2) + "," + (y + this.height/2) + ")");
-    if (this.rounded) triangle.setAttribute("stroke-linejoin", "round");
-    return triangle;
-  }
-  setScale() {
-    console.error("TODO!");
   }
 }
 class Line {
@@ -1508,12 +1526,18 @@ class Rectangle {
 
     return this;
   }
+  setPosition(pos) {
+    this.x = pos.x;
+    this.y = pos.y;
+    this.updateAttributes();
+  }
   setColor(color) {
     this.color = color;
   }
   setStroke(opts) {
     this.stroke = opts.color;
     this.strokeWidth = opts.width;
+    this.updateAttributes();
   }
   setShadow(shadow) {
     this.shadow = shadow;
@@ -1604,8 +1628,25 @@ class Rectangle {
   }
 }
 class SVGSelect extends Component {
-  constructor(x, y, width, scale) {
+  constructor(x, y, width, scale, cb=null) {
     super(x, y, width, 18, scale);
+
+    this.callback = cb;
+    this.maxHeight = (18 * 5 + 4) * this.scale
+
+    this.dropRect = new Rectangle(0, 0, this.tw, this.th, true, 3);
+    this.dropRect.setColor("#121212");
+    this.dropRect.setStroke({
+      color: "#0f0f0f",
+      width: 1
+    });
+    this.dropRect.elem.style.overflow = "scroll";
+    this.dropRect.elem.style.transition = "0.2s";
+    this.elements.push({ element: this.dropRect });
+
+    this.body = new ScrollComponent(0, this.th, this.tw, 0, scale);
+    this.body.rect.style.transition = "0.2s";
+    this.elements.push({ element: this.body });
 
     this.bgRect = new Rectangle(0, 0, this.tw, this.th, true, 3);
     this.bgRect.setColor("#121212");
@@ -1613,7 +1654,15 @@ class SVGSelect extends Component {
       color: "#0f0f0f",
       width: 1
     });
+    this.bgRect.elem.id = "bgRect";
     this.elements.push({ element: this.bgRect });
+
+    this.selected = new Text(3, 3.5, "", this.scale, Text.Anchor.START, Text.VerticalAnchor.TOP);
+    this.selected.container.style.fontSize = (14 * this.scale) + "px";
+    this.selected.container.style.userSelect = "none";
+    this.selected.container.id = uid();
+    this.selected.setColor("#808080");
+    this.elements.push({ element: this.selected });
 
     this.builder = new PathBuilder();
     this.builder.moveTo(this.tw - 10, 7);
@@ -1626,14 +1675,155 @@ class SVGSelect extends Component {
       stroke: "#808080",
       width: 1
     });
+    this.default = this.builder.build();
     this.path.container.style.strokeLinejoin = "round";
     this.path.container.style.strokeLinecap = "round";
+    this.path.container.style.transition = "0.2s";
+    this.path.container.id = "arrow";
     this.elements.push({ element: this.path });
 
-    this.container.addEventListener("click", () => {
+    // the d attribute for the upside-down arrow onclick with animation
+    this.builder.clear();
+    this.builder.moveTo(this.tw - 10, 11);
+    this.builder.lineTo(3, -4, true);
+    this.builder.lineTo(3, 4, true);
+    this.flipped = this.builder.build();
+
+    this.expanded = 0;
+    this.items = [];
+
+    this.container.addEventListener("pointerup", (e) => {
+      if (e.target.id == this.bgRect.elem.id || e.target.id == this.path.container.id || e.target.id == this.selected.container.id) {
+        this.toggle();
+      }
     });
 
     return this;
+  }
+  addItem(label, id, cb=null) {
+    const text = new Text(3, (18 * (this.items.length + 1) - 3) * this.scale, label, this.scale, Text.Anchor.START, Text.VerticalAnchor.BOTTOM);
+    text.setColor("#808080");
+    this.body.addComponent(text);
+    this.items.push({ id: id, elem: text, cb: cb });
+    text.container.addEventListener("pointerup", (e) => {
+      const data = {
+        selected: id,
+        label: label,
+        target: e.target
+      };
+      if (cb) cb(data);
+      if (this.callback) this.callback(data);
+      this.selected.setText(label);
+      this.expanded = 0;
+      this.collapse();
+    });
+  }
+  toggle() {
+    if (this.expanded) {
+      this.collapse();
+    } else {
+      this.expand();
+    }
+    this.expanded = 1 - this.expanded; // math magic :D
+  }
+  expand() {
+    this.bgRect.setStroke({
+      color: "black",
+      width: 1
+    });
+    this.path.container.style.d = 'path("' + this.flipped + '")';
+
+    const h = Math.min(this.maxHeight, (18 * (this.items.length + 1)) * this.scale);
+    this.dropRect.setHeight(h);
+    this.body.setHeight(h - this.th);
+  }
+  collapse() {
+    this.bgRect.setStroke({
+      color: "#0f0f0f",
+      width: 1
+    });
+    this.path.container.style.d = 'path("' + this.default + '")';
+    this.dropRect.setHeight(this.th);
+    this.body.setHeight(0);
+  }
+}
+class ScrollComponent extends Component {
+  constructor(x, y, width, height, scale) {
+    super(x, y, width, height, scale);
+
+    this.defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+    this.elements.push({ element: this.defs, render: (el) => el });
+
+    this.cPath = document.createElementNS("http://www.w3.org/2000/svg", "clipPath");
+    this.cPath.id = uid();
+    this.defs.appendChild(this.cPath);
+    this.rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    this.rect.setAttribute("x", 0);
+    this.rect.setAttribute("y", 0);
+    this.rect.setAttribute("width", width);
+    this.rect.setAttribute("height", height);
+    this.cPath.appendChild(this.rect);
+
+    this.container.style.overflow = "overlay";
+    this.container.setAttribute("clip-path", "url(#" + this.cPath.id + ")");
+
+    this.content = new Viewport(0, 0);
+    this.baseScrollDelta = 150;
+    this.container.addEventListener("wheel", (e) => {
+      if (e.cancelable) e.preventDefault();
+      let sY = Math.min(this.scrollY + (this.th * 0.2) * (this.baseScrollDelta / e.deltaY), this.th - (this.content.container.getBBox().height - this.th));
+      this.scrollTo(0, (sY < 0) ? 0 : sY);
+    });
+    this.tPosY;
+    this.container.addEventListener("touchstart", (e) => {
+      this.tPosY = e.changedTouches[0].clientY;
+    });
+    this.container.addEventListener("touchmove", (e) => {
+      if (e.cancelable) e.preventDefault();
+      let newPos = e.changedTouches[0].clientY;
+      if (this.tPosY > newPos) {
+        let sY = Math.min(this.scrollY + ((this.content.container.getBBox().height - this.th) * 0.2), this.th - (this.content.container.getBBox().height - this.th));
+        this.scrollTo(0, (sY < 0) ? 0 : sY);
+      } else {
+        let sY = Math.min(this.scrollY + ((this.content.container.getBBox().height - this.th) * -0.2), this.th - (this.content.container.getBBox().height - this.th));
+        this.scrollTo(0, (sY < 0) ? 0 : sY);
+      }
+    });
+    this.elements.push({ element: this.content });
+
+    const scrollHeight = this.th;
+    this.scrollBar = new Rectangle(this.tw - 2 - 5, 0, 5, scrollHeight, true, 2);
+    this.scrollBar.setColor("#060606");
+    this.elements.push({ element: this.scrollBar });
+
+    this.scrollY = 0;
+
+    return this;
+  }
+  scrollTo(x, y) {
+    this.scrollY = y;
+    this.content.setPosition({ x: -1 * x, y: -1 * y });
+
+    // move scroll bar
+    let factor = y / (this.content.container.getBBox().height - this.th);
+    this.scrollBar.setPosition({ x: this.scrollBar.x, y: y * factor });
+  }
+  setHeight(h) {
+    this.height = h;
+    this.th = h * this.scale;
+    this.rect.setAttribute("height", h);
+
+    // height * (percentage of the overlapping content towards the current height)
+    const height = (this.th * ((this.content.container.getBBox().height - this.th) / 100));
+    this.scrollBar.setHeight(height);
+  }
+  setWidth(w) {
+    this.width = w;
+    this.tw = w * this.scale;
+    this.rect.setAttribute("width", w);
+  }
+  addComponent(c, render=(el)=>el.createSVGElement()) {
+    this.content.addComponent(c, render);
   }
 }
 class SVGCheckbox extends Component {
@@ -2105,9 +2295,9 @@ engine.addComponent(screen);
 const start = new StartEventNode(56, 56, 1, engine, "bezier");
 engine.addComponent(start);
 
-/*const select = new SVGSelect(105, 120, 180, 1);
-console.log(select);
-engine.addComponent(select);*/
+const math = new MathNode(100, 100, 1, engine, "bezier");
+engine.addComponent(math);
+
 document.body.style.overflow = "hidden";
 
 window.addEventListener("mousewheel", (e) => {
