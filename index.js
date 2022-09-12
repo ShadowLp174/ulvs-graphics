@@ -9,6 +9,7 @@ class Component {
     this.isComponent = true;
     this.ox = this.x; // store original x and y
     this.oy = this.y;
+    this.renderContainer = null;
 
     this.elements = []; // the array containing every sub-element of this component:
     /*
@@ -48,13 +49,27 @@ class Component {
     });
   }
 
+  moveToTop() { // moves the current component to the top of the container
+    if (!this.renderContainer) return false;
+    if (this.renderContainer.querySelector("#connectors")) {
+      // component is inside a svgengine
+      const connectorGroup = this.renderContainer.querySelector("#connectors");
+      this.renderContainer.insertBefore(this.container, connectorGroup);
+      return true;
+    } else {
+      this.renderContainer.appendChild(this.container);
+      return true;
+    }
+  }
+
   setPosition(pos) {
     this.x = pos.x;
     this.y = pos.y;
     this.updateAttributes();
     return pos;
   }
-  createSVGElement() { // create the whole svg element and return it
+  createSVGElement(c) { // create the whole svg element and return it
+    this.renderContainer = c;
     this.container.innerHTML = "";
     this.elements.forEach((elem) => { // loop through each sub-element
       const rendered = (!elem.render) ? elem.element.createSVGElement(elem.element) : elem.render(elem.element); // and call the render function
@@ -262,6 +277,8 @@ class OutputPlugComponent extends Component {
     this.interactions = new UserInteractionManager(); // user interactions
     this.label = label;
 
+    this.container.setAttribute("OpenVS-Node-Id", this.node.id);
+
     this.plugPos = { // center position of the circle
       x: 20 * this.scale + 8 * this.scale,
       y: 8 * this.scale
@@ -407,6 +424,7 @@ class OutputPlugComponent extends Component {
     });
     this.activeConnector.connectedTo = this.snappingSocket.socket;
     this.activeConnector.connectedNode = this.snappingSocket.socket.node.id;
+    console.log(this.activeConnector);
     socket.connected = true;
     socket.node.addEventListener("move", (e) => {
       if (this.connected.length == 0 || !this.connected) return; // only execute if the node is currently connected
@@ -538,6 +556,8 @@ class InputSocketComponent extends Component {
     this.id = uid();
     this.checkbox = (type === InputSocketComponent.Type.BOOLEAN) ? checkbox : false; // TODO: add an input for nums/strings
 
+    this.container.setAttribute("OpenVS-Node-Id", this.node.id);
+
     this.color = InputSocketComponent.ColorMapping[type];
 
     this.cCircle = new Circle(0, 0, 8 * this.scale, true);
@@ -650,6 +670,10 @@ class Node extends Component {
 
     this.id = uid();
     this.parentSVGEngine = svgEngine;
+    this.embedNode = false;
+
+    window.openVS.nodes[this.id] = this;
+    this.container.setAttribute("OpenVS-Node-Id", this.id);
 
     this.shadows = SVGEngine.createShadowFilter(0, 1); // create the shadow defs element
     this.shadowElement = this.shadows.element;
@@ -693,7 +717,14 @@ class Node extends Component {
     this.body.addComponent(this.outputPlugs, (el) => {return el.map(e => e.createSVGElement());});
     this.connectionOffset = 0;
 
-    this.dragHandler = new NodeDragAttachment();
+    this.dragHandler = new NodeDragAttachment(() => {
+      this.moveToTop();
+      this.plugs.forEach(plug => {
+        plug.renderContainer = this.parentSVGEngine.element;
+        console.log(plug);
+        // plug.moveToTop();
+      });
+    });
     this.dragHandler.attach(this);
 
     this.eventElem = document.createElement("span");
@@ -701,10 +732,32 @@ class Node extends Component {
       move: new CustomEvent("move", { detail: {node: this} })
     }
 
+    this.renderContainer = this.parentSVGEngine.element;
+
     return this;
   }
+  get renderContainer() {
+    // getter to keep return an up-to-date copy of the element by the svg engine, even if it changes
+    return this.parentSVGEngine.renderElement;
+  }
+  set renderContainer(_i) {
+    // console.warn("Don't do that! [Node.renderContainer is readonly] trying to set to '" + i +"'");
+  }
   clearConnections() {
-
+    console.log("clear", this);
+  }
+  createSVGElement() {
+    if (this.embedContainer) {
+      this.body.createSVGElement();
+      this.connectors.createSVGElement();
+      this.embedContainer.append(this.connectors.container, this.body.container);
+      return this.embedContainer; // don't execute the inherited function
+    }
+    return super.createSVGElement();
+  }
+  embedBody(container, node) { // Embed all the connectors and similar in another element
+    this.embedContainer = container;
+    this.embedNode = node;
   }
   setConnectorType(type) {
     this.plugs.forEach((plug) => {
@@ -715,7 +768,7 @@ class Node extends Component {
     });
   }
   addEventListener(event, cb) {
-    return this.eventElem.addEventListener(event, cb);
+    return (this.embedNode.eventElem || this.eventElem).addEventListener(event, cb);
   }
   emit(event) {
     const e = this.events[event];
@@ -801,7 +854,7 @@ class Node extends Component {
     this.bgRect.setHeight(this.bgRect.height +  delta);
   }
   addSocket() {
-    const socket = new InputSocketComponent((-8 * this.scale), (36 * this.sockets.length + this.connectionOffset) * this.scale, 16, 34, this.scale, InputSocketComponent.Type.CONNECTOR, this);
+    const socket = new InputSocketComponent((-8 * this.scale), (36 * this.sockets.length + this.connectionOffset) * this.scale, 16, 34, this.scale, InputSocketComponent.Type.CONNECTOR, (this.embedNode || this));
 
     const currLength = Math.max(this.plugs.length, this.sockets.length);
 
@@ -823,7 +876,7 @@ class Node extends Component {
 
     const currLength = Math.max(this.plugs.length, this.sockets.length);
 
-    const plug = new OutputPlugComponent(this.tw - (36 - 8) * this.scale, (36 * this.plugs.length + this.connectionOffset) * this.scale, 16, 34, this.scale, OutputPlugComponent.Type.CONNECTOR, this.parentSVGEngine, this, style);
+    const plug = new OutputPlugComponent(this.tw - (36 - 8) * this.scale, (36 * this.plugs.length + this.connectionOffset) * this.scale, 16, 34, this.scale, OutputPlugComponent.Type.CONNECTOR, this.parentSVGEngine, (this.embedNode || this), style);
     this.plugs.push(plug);
 
     if (this.plugs.length > currLength) {
@@ -835,7 +888,7 @@ class Node extends Component {
     return this.plugs;
   }
   addInputSocket(type, label) {
-    const socket = new InputSocketComponent((-8 * this.scale), (28 * this.inputSockets.length) * this.scale, 16*this.scale, 34*this.scale, this.scale, type, this, label);
+    const socket = new InputSocketComponent((-8 * this.scale), (28 * this.inputSockets.length) * this.scale, 16*this.scale, 34*this.scale, this.scale, type, (this.embedNode || this), label);
 
     const currLength = Math.max(this.inputSockets.length, this.outputPlugs.length);
     this.inputSockets.push(socket);
@@ -848,7 +901,7 @@ class Node extends Component {
     return this.inputSockets;
   }
   addOutputPlug(type, label, style) {
-    const plug = new OutputPlugComponent(this.tw - (36 - 8) * this.scale, (28 * this.outputPlugs.length) * this.scale, 16, 34, this.scale, type, this.parentSVGEngine, this, style, label);
+    const plug = new OutputPlugComponent(this.tw - (36 - 8) * this.scale, (28 * this.outputPlugs.length) * this.scale, 16, 34, this.scale, type, this.parentSVGEngine, (this.embedNode || this), style, label);
 
     const currLength = Math.max(this.inputSockets.length, this.outputPlugs.length);
     this.outputPlugs.push(plug);
@@ -909,11 +962,13 @@ class ScreenSizeNode extends Node {
   }
 }
 class AdditionNode extends Node {
-  constructor(x, y, scale, svgEngine, type="") {
+  constructor(x, y, scale, svgEngine, type="", embed=null, embedNode=null) {
     super(x, y, scale, svgEngine);
 
     this.setName("Add (Math)");
     this.setClass(Node.Class.BASIC);
+
+    if (embed) this.embedBody(embed, embedNode);
 
     this.addInputSocket(InputSocketComponent.Type.NUMBER,"A", type);
     this.addInputSocket(InputSocketComponent.Type.NUMBER,"B", type);
@@ -923,11 +978,28 @@ class AdditionNode extends Node {
     return this;
   }
 }
+class MultiplicationNode extends Node {
+  constructor(x, y, scale, svgEngine, type="", embed=null, embedNode=null) {
+    super(x, y, scale, svgEngine);
+
+    this.setName("Multiply (Math)");
+    this.setClass(Node.Class.BASIC);
+
+    if (embed) this.embedBody(embed, embedNode);
+
+    this.addInputSocket(InputSocketComponent.Type.NUMBER,"A", type);
+    this.addInputSocket(InputSocketComponent.Type.NUMBER,"B", type);
+
+    this.addOutputPlug(OutputPlugComponent.Type.NUMBER, "Product", type);
+
+    return this;
+  }
+}
 class MathNode extends Node {
   constructor(x, y, scale, svgEngine, type="") {
     super(x, y, scale, svgEngine);
 
-    this.setName("Add"); // default math operation
+    this.setName("Add (Math)"); // default math operation
     this.setClass(Node.Class.BASIC);
 
     this.cStyle = type; // connector design
@@ -935,29 +1007,65 @@ class MathNode extends Node {
     this.setConnectionOffset(28 * this.scale);
 
     this.opSelect = new SVGSelect(10 * this.scale, 42 * this.scale, 180, this.scale, (data) => this.switched(data));
-    this.opSelect.addItem("Add", "add-concat");
-    this.opSelect.addItem("Multiply", "multiply");
-    this.opSelect.selected.container.innerHTML = "Add";
+    this.opSelect.addItem("Add (Math)", "add-concat");
+    this.opSelect.addItem("Multiply (Math)", "multiply");
+    this.opSelect.selected.container.innerHTML = "Add (Math)";
+    // select has to be rendered last
+
+    this.embeds = new Viewport(0, 30 * this.scale);
+    this.elements.push({ element: this.embeds });
+
+    const config = { attributes: true, childList: true, subtree: true };
+    const callback = (mutationList) => {
+      for (var mutation of mutationList) {
+        if (mutation.type == "attributes" || mutation.type == "childList") {
+          this.bgRect.setHeight((45 + this.embeds.y) * this.scale + this.embeds.container.getBBox().height);
+        }
+      }
+    }
     this.elements.push({ element: this.opSelect });
 
+    const observer = new MutationObserver(callback);
+    observer.observe(this.embeds.container, config);
+
+    this.init = true;
     this.setupBody("add-concat");
 
     return this;
   }
+  createSVGElement() {
+    return super.createSVGElement();
+  }
   setupBody(id) {
     this.clearConnections();
+    this.embeds.container.innerHTML = "";
     switch(id) {
       case "add-concat":
-
+        const addition = new AdditionNode(0, 0, this.scale, this.parentSVGEngine, this.cStyle, this.embeds.container, this);
+        this.elements.push({ element: addition, render: (el) => {
+          el.createSVGElement();
+        }});
+        console.log(this);
+        if (!this.init) return addition.createSVGElement();
+        this.init = false;
+      break;
+      case "multiply":
+        const mult = new MultiplicationNode(0, 0, this.scale, this.parentSVGEngine, this.cStyle, this.embeds.container, this);
+        this.elements.push({ element: mult, render: (el) => {
+          el.createSVGElement();
+        }});
+        if (!this.init) return mult.createSVGElement();
+        this.init = false;
       break;
       default:
-
+        console.warn("Suspicious case detected 🤨: ", id);
       break;
     }
   }
   switched(item) {
     this.type = item.selected;
     this.setName(item.label);
+    this.setupBody(item.selected);
   }
 }
 class StartEventNode extends Node {
@@ -983,8 +1091,10 @@ class Attachment {
   }
 }
 class NodeDragAttachment extends Attachment {
-  constructor() {
+  constructor(onStart=null) {
     super();
+
+    this.onStart = onStart;
 
     this.dragging = false;
     this.mouseStartPos = {}; // the mouse position when you start dragging to calc the offset
@@ -998,6 +1108,7 @@ class NodeDragAttachment extends Attachment {
     super.attach(node);
     this.interactions.initListeners(node.hRect.elem, (e) => {
       // mousedown
+      if (this.onStart) this.onStart(e);
       this.mouseStartPos = {
         x: e.clientX,
         y: e.clientY
@@ -1060,6 +1171,8 @@ class Connector extends Component {
     super(x, y, width, height, scale);
 
     console.log(this);
+
+    window.openVS.connectors.push(this); // TODO: z-index stuff, you know what to do
 
     this.plug = plug;
     this.currMousePos = mousePos;
@@ -2055,8 +2168,23 @@ class SVGEngine {
     this.element.id = "ULVS-Engine_" + (new Date()).getTime();
     document.body.appendChild(this.element);
 
+    // separated container for connector elements so they stay on top
+    /*this.connectorContainer = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    this.connectorContainer.id = "connectors";
+    this.element.appendChild(this.connectorContainer);*/
+
     this.width = window.innerWidth;
     this.height = window.innerHeight;
+
+    // setup global variables
+    window.openVS = {
+      nodes: {
+
+      },
+      connectors: [
+
+      ]
+    }
 
     this.components = [];
     this.scale = 1;
@@ -2073,6 +2201,12 @@ class SVGEngine {
     this.generateStyles();
 
     return this;
+  }
+  get renderElement() {
+    return this.element;
+  }
+  set renderElement(i) {
+    console.warn("Don't do that! [SVGEngine.renderElement is readonly] trying to set to '" + i +"'");
   }
   toggleConnectorType() {
     this.connTypeToggle = 1 - this.connTypeToggle;
