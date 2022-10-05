@@ -277,6 +277,8 @@ class OutputPlugComponent extends Component {
     this.interactions = new UserInteractionManager(); // user interactions
     this.label = label;
 
+    this.minConDist = 50; // the minimum distance to snap
+
     this.container.setAttribute("OpenVS-Node-Id", this.node.id);
 
     this.plugPos = { // center position of the circle
@@ -293,6 +295,8 @@ class OutputPlugComponent extends Component {
     this.initConnector();
     this.elements.push({ element: this.oCircle, render: (el) => el.createSVGElement() });
 
+    this.eventElem = document.createElement("span");
+
     if (type !== OutputPlugComponent.Type.CONNECTOR) {
       this.initType();
       return this;
@@ -303,6 +307,14 @@ class OutputPlugComponent extends Component {
     this.elements.push({ element: this.oT, render: (el) => el.createSVGElement() });
 
     return this;
+  }
+  addEventListener(event, cb) {
+    return this.eventElem.addEventListener(event, (e) => {
+      cb(e.detail);
+    });
+  }
+  emit(event, data) {
+    return this.eventElem.dispatchEvent(new CustomEvent(event, { detail: data }));
   }
   initType() {
     this.oCircle.setPosition({
@@ -315,7 +327,7 @@ class OutputPlugComponent extends Component {
     this.text.setColor("white");
     this.elements.push({ element: this.text });
 
-    let typeMetrics = Text.measureText(OutputPlugComponent.TypeLabel[this.type]);
+    //let typeMetrics = Text.measureText(OutputPlugComponent.TypeLabel[this.type]);
     this.typeLabel = new Text((13 - metrics.width) * this.scale, (2) * this.scale, OutputPlugComponent.TypeLabel[this.type], this.scale, Text.Anchor.END, Text.VerticalAnchor.TOP);
     this.typeLabel.container.style.fontSize = (9 * this.scale) + "px";
     this.typeLabel.setColor(this.color);
@@ -424,7 +436,6 @@ class OutputPlugComponent extends Component {
     });
     this.activeConnector.connectedTo = this.snappingSocket.socket;
     this.activeConnector.connectedNode = this.snappingSocket.socket.node.id;
-    console.log(this.activeConnector);
     socket.connected = true;
     socket.node.addEventListener("move", (e) => {
       if (this.connected.length == 0 || !this.connected) return; // only execute if the node is currently connected
@@ -449,6 +460,7 @@ class OutputPlugComponent extends Component {
       this.initSnapping();
       this.activeConnector = new (ConnectorManager.getConnector(this.styleType))(this, { x: e.clientX, y: e.clientY }, this.getAbsCoords(this.oCircle.container), this.scale, OutputPlugComponent.ConnectorColor[this.type]);
       this.parentSVGEngine.element.appendChild(this.activeConnector.createSVGElement()); // don't add as a component to prevent "wobbing" while panning
+      this.emit("connector", this.activeConnector);
     }
     this.interactions.initListeners(this.oCircle.container, (e) => {
       this.mouseDown(e);
@@ -481,7 +493,7 @@ class OutputPlugComponent extends Component {
         this.snapping = false;
       }
       if (this.connectables.length == 0) return;
-      if (this.connectables[0].distance > 50) {
+      if (this.connectables[0].distance > (this.minConDist || 50)) {
         if (!this.snappingSocket) return;
         reset()
         return;
@@ -494,6 +506,7 @@ class OutputPlugComponent extends Component {
       // end/cancel listener
       if (!this.dragging) return;
       if (this.snapping) return this.snap();
+      this.emit("connectordestroy", this.activeConnector);
       this.activeConnector = this.activeConnector.destroy(); // destroy the connector and the variable; cause destroy returns undefined
       this.dragging = false;
     });
@@ -717,12 +730,25 @@ class Node extends Component {
     this.body.addComponent(this.outputPlugs, (el) => {return el.map(e => e.createSVGElement());});
     this.connectionOffset = 0;
 
+    this.outgoingConnectors = [];
+    this.incomingConnectors = [];
+
     this.dragHandler = new NodeDragAttachment(() => {
       this.moveToTop();
-      this.plugs.forEach(plug => {
+      let move = (plug) => {
         plug.renderContainer = this.parentSVGEngine.element;
+        plug.connected.forEach((connector) => {
+          connector.renderContainer = this.parentSVGEngine.element;
+          connector.moveToTop();
+        });
+      }
+      this.plugs.forEach(plug => {
+        move(plug);
+      });
+      console.log(this.outputPlugs);
+      this.outputPlugs.forEach(plug => {
         console.log(plug);
-        // plug.moveToTop();
+        move(plug);
       });
     });
     this.dragHandler.attach(this);
@@ -869,7 +895,7 @@ class Node extends Component {
     return this.sockets;
   }
   addPlug(label, style) {
-    let metrics = Text.measureText(label);
+    //let metrics = Text.measureText(label);
     const text = new Text(this.tw - (34) * this.scale, (38 * this.plugs.length + this.connectionOffset) * this.scale, label, this.scale, Text.Anchor.END, Text.VerticalAnchor.TOP);
     text.setColor("white");
     this.labels.push(text);
@@ -878,6 +904,15 @@ class Node extends Component {
 
     const plug = new OutputPlugComponent(this.tw - (36 - 8) * this.scale, (36 * this.plugs.length + this.connectionOffset) * this.scale, 16, 34, this.scale, OutputPlugComponent.Type.CONNECTOR, this.parentSVGEngine, (this.embedNode || this), style);
     this.plugs.push(plug);
+
+    plug.addEventListener("connector", (e) => {
+      this.outgoingConnectors.push(e);
+    });
+    plug.addEventListener("connectordestroy", (e) => {
+      const idx = this.outgoingConnectors.findIndex(el => el.id == e.id);
+      if (idx === -1) return;
+      this.outgoingConnectors.splice(idx, 1);
+    });
 
     if (this.plugs.length > currLength) {
       let diff = this.plugs.length - currLength;
@@ -902,6 +937,15 @@ class Node extends Component {
   }
   addOutputPlug(type, label, style) {
     const plug = new OutputPlugComponent(this.tw - (36 - 8) * this.scale, (28 * this.outputPlugs.length) * this.scale, 16, 34, this.scale, type, this.parentSVGEngine, (this.embedNode || this), style, label);
+
+    plug.addEventListener("connector", (e) => {
+      this.outgoingConnectors.push(e);
+    });
+    plug.addEventListener("connectordestroy", (e) => {
+      const idx = this.outgoingConnectors.findIndex(el => el.id == e.id);
+      if (idx === -1) return;
+      this.outgoingConnectors.splice(idx, 1);
+    });
 
     const currLength = Math.max(this.inputSockets.length, this.outputPlugs.length);
     this.outputPlugs.push(plug);
@@ -1174,6 +1218,8 @@ class Connector extends Component {
 
     window.openVS.connectors.push(this); // TODO: z-index stuff, you know what to do
 
+    this.eventElem = document.createElement("span");
+
     this.plug = plug;
     this.currMousePos = mousePos;
     this.absCoords = absPlugCoords;
@@ -1181,6 +1227,12 @@ class Connector extends Component {
     this.startPos = { x: this.x, y: this.y };
 
     return this;
+  }
+  addEventListener(event, cb) {
+    return this.eventElem.addEventListener(event, cb);
+  }
+  emit(event, data) {
+    return this.eventElem.dispatchEvent(new CustomEvent(event, { detail: data }));
   }
   destroy() {
     this.container.remove();
@@ -1202,7 +1254,7 @@ class Connector extends Component {
   }
   attachMoveListener(el) { // the event to relocate the connector
     this.plug.interactions.initListeners(el, () => {
-      this.plug.dragging = true;
+      this.plug.dragging = true; // the moving and destroying is done in the plugcomponent
       this.plug.snapping = false;
       this.connectedTo.connected = false;
       this.connectedTo.disconnect();
