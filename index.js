@@ -437,6 +437,7 @@ class OutputPlugComponent extends Component {
     this.activeConnector.connectedTo = this.snappingSocket.socket;
     this.activeConnector.connectedNode = this.snappingSocket.socket.node.id;
     socket.connected = true;
+    socket.connector = this.activeConnector;
     socket.node.addEventListener("move", (e) => {
       if (this.connected.length == 0 || !this.connected) return; // only execute if the node is currently connected
       const pos = this.getAbsCoords(socket.cCircle.container);
@@ -577,6 +578,8 @@ class InputSocketComponent extends Component {
     this.cCircle.setColor(this.color);
     this.elements.push({ element: this.cCircle, render: (el) => el.createSVGElement() });
 
+    this.con; // the connector
+
     if (type !== InputSocketComponent.Type.CONNECTOR) {
       this.initType();
       return this;
@@ -588,6 +591,12 @@ class InputSocketComponent extends Component {
     this.elements.push({ element: this.cT, render: (el) => el.createSVGElement() });
 
     return this;
+  }
+  get connector() {
+    return this.con;
+  }
+  set connector(connector) {
+    return this.con = connector;
   }
   connect() {
     if (!this.checkbox) return;
@@ -742,13 +751,23 @@ class Node extends Component {
           connector.moveToTop();
         });
       }
+      let moveSocket = (socket) => {
+        socket.renderContainer = this.parentSVGEngine.element;
+        if (!socket.connected) return;
+        socket.connector.renderContainer = this.parentSVGEngine.element;
+        socket.connector.moveToTop();
+      }
       this.plugs.forEach(plug => {
         move(plug);
       });
-      console.log(this.outputPlugs);
       this.outputPlugs.forEach(plug => {
-        console.log(plug);
         move(plug);
+      });
+      this.inputSockets.forEach(socket => {
+        moveSocket(socket);
+      });
+      this.sockets.forEach(socket => {
+        moveSocket(socket);
       });
     });
     this.dragHandler.attach(this);
@@ -1080,6 +1099,13 @@ class MathNode extends Node {
   createSVGElement() {
     return super.createSVGElement();
   }
+  transfer(node) {
+    this.plugs = node.plugs;
+    this.sockets = node.sockets;
+    this.outputPlugs = node.outputPlugs;
+    this.inputSockets = node.inputSockets;
+    this.labels = node.labels;
+  }
   setupBody(id) {
     this.clearConnections();
     this.embeds.container.innerHTML = "";
@@ -1089,6 +1115,7 @@ class MathNode extends Node {
         this.elements.push({ element: addition, render: (el) => {
           el.createSVGElement();
         }});
+        this.transfer(addition);
         console.log(this);
         if (!this.init) return addition.createSVGElement();
         this.init = false;
@@ -1098,6 +1125,7 @@ class MathNode extends Node {
         this.elements.push({ element: mult, render: (el) => {
           el.createSVGElement();
         }});
+        this.transfer(mult);
         if (!this.init) return mult.createSVGElement();
         this.init = false;
       break;
