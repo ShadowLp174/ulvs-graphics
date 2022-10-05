@@ -609,7 +609,7 @@ class InputSocketComponent extends Component {
   disconnect() {
     if (!this.checkbox) return;
     if (!this.box) return;
-    this.node.simulate(this.node.state);
+    if (this.node.state) this.node.simulate(this.node.state);
     this.box.container.style.display = "block";
     this.offset = 23;
     this.relocateLabels();
