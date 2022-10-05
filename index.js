@@ -601,6 +601,7 @@ class InputSocketComponent extends Component {
   connect() {
     if (!this.checkbox) return;
     if (!this.box) return;
+    this.node.reset();
     this.box.container.style.display = "none";
     this.offset = 0;
     this.relocateLabels();
@@ -608,6 +609,7 @@ class InputSocketComponent extends Component {
   disconnect() {
     if (!this.checkbox) return;
     if (!this.box) return;
+    this.node.simulate(this.node.state);
     this.box.container.style.display = "block";
     this.offset = 23;
     this.relocateLabels();
@@ -989,13 +991,22 @@ class ConditionNode extends Node {
     // data inputs
     this.addInputSocket(InputSocketComponent.Type.BOOLEAN, "Condition", type);
 
+    this.state = null;
+
     return this;
   }
   simulate(state) {
+    this.state = state;
     this.labels[1 - state].setColor("white");
     this.labels[state].setColor("rgba(255, 255, 255, 0.3)");
     this.plugs[1 - state].setOpacity(1);
     this.plugs[state].setOpacity(0.3);
+  }
+  reset() {
+    this.labels[0].setColor("white");
+    this.labels[1].setColor("white");
+    this.plugs[0].setOpacity(1);
+    this.plugs[1].setOpacity(1);
   }
 }
 class IsMobileNode extends Node {
