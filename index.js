@@ -23,7 +23,7 @@ class Component {
     */
 
     this.container = document.createElementNS("http://www.w3.org/2000/svg", "svg"); // the container
-    this.container.style.overflow = "overlay";
+    this.container.style.overflow = "visible";
     this.updateAttributes();
 
     return this;
@@ -39,6 +39,8 @@ class Component {
       this.x = this.ox;
       this.y = this.oy;
     }*/
+    this.container.style.height = "100%";
+    this.container.style.width = "100%";
 
     this.container.setAttribute("x", this.x);
     this.container.setAttribute("y", this.y);
@@ -93,7 +95,7 @@ class Viewport {
     this.components = [];
 
     this.container = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    this.container.style.overflow = "overlay";
+    this.container.style.overflow = "visible";
     this.updateAttributes();
 
     return this;
@@ -1990,7 +1992,7 @@ class ScrollComponent extends Component {
     this.rect.setAttribute("height", height);
     this.cPath.appendChild(this.rect);
 
-    this.container.style.overflow = "overlay";
+    this.container.style.overflow = "visible";
     this.container.setAttribute("clip-path", "url(#" + this.cPath.id + ")");
 
     this.content = new Viewport(0, 0);
@@ -2445,7 +2447,7 @@ class RoundedTriangleComponent extends RoundedTriangle {
     this.isComponent = true;
 
     this.container = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    this.container.style.overflow = "overlay";
+    this.container.style.overflow = "visible";
     this.container.appendChild(this.path);
     this.color = "white";
     this.stroke = "white";
