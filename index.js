@@ -791,7 +791,15 @@ class Node extends Component {
     // console.warn("Don't do that! [Node.renderContainer is readonly] trying to set to '" + i +"'");
   }
   clearConnections() {
-    console.log("clear", this);
+    [...this.inputSockets, ...this.sockets].forEach(socket => {
+      if (!socket.connected) return;
+      socket.connector.disconnect();
+    });
+    [...this.outputPlugs, ...this.plugs].forEach(plug => {
+      plug.connected.forEach(connector => {
+        connector.disconnect();
+      })
+    })
   }
   createSVGElement() {
     if (this.embedContainer) {
@@ -1080,7 +1088,7 @@ class MathNode extends Node {
 
     this.setConnectionOffset(28 * this.scale);
 
-    this.opSelect = new SVGSelect(10 * this.scale, 42 * this.scale, 180, this.scale, (data) => this.switched(data));
+    this.opSelect = new SVGSelect(10 * this.scale, 42 * this.scale, 180, this.scale, (data) => this.switched(data), (s) => this.mTop(s));
     this.opSelect.addItem("Add (Math)", "add-concat");
     this.opSelect.addItem("Multiply (Math)", "multiply");
     this.opSelect.selected.container.innerHTML = "Add (Math)";
@@ -1149,6 +1157,12 @@ class MathNode extends Node {
     this.type = item.selected;
     this.setName(item.label);
     this.setupBody(item.selected);
+  }
+  mTop(state) {
+    if (!state) return; // only run if it is expanding
+    /*this.opSelect.renderContainer = this.parentSVGEngine.element;
+    console.log(this);
+    this.opSelect.moveToTop();*/ // don't do this... not good
   }
 }
 class StartEventNode extends Node {
@@ -1253,8 +1267,6 @@ class Connector extends Component {
     let height = mousePos.y - y;
     super(x, y, width, height, scale);
 
-    console.log(this);
-
     window.openVS.connectors.push(this); // TODO: z-index stuff, you know what to do
 
     this.eventElem = document.createElement("span");
@@ -1291,6 +1303,14 @@ class Connector extends Component {
       this.plug.mouseDown(e);
     }, () => {}, () => {});
   }
+  disconnect() {
+    this.connectedTo.connected = false;
+    this.connectedTo.disconnect();
+    this.connectedTo = { id: null };
+    this.connectedNode = null;
+    this.plug.connected.splice(this.plug.connected.findIndex(el => el.id == this.id), 1);
+    this.destroy();
+  }
   attachMoveListener(el) { // the event to relocate the connector
     this.plug.interactions.initListeners(el, () => {
       this.plug.dragging = true; // the moving and destroying is done in the plugcomponent
@@ -1299,7 +1319,7 @@ class Connector extends Component {
       this.connectedTo.disconnect();
       this.connectedTo = { id: null };
       this.connectedNode = null;
-      this.plug.connected = this.plug.connected.splice(this.plug.connected.findIndex(el => el.id == this.id), 1);
+      this.plug.connected.splice(this.plug.connected.findIndex(el => el.id == this.id), 1);
       this.plug.initSnapping();
       this.plug.activeConnector = this;
     }, () => {}, () => {});
@@ -1832,10 +1852,11 @@ class Rectangle {
   }
 }
 class SVGSelect extends Component {
-  constructor(x, y, width, scale, cb=null) {
+  constructor(x, y, width, scale, cb=null, ccb=null) {
     super(x, y, width, 18, scale);
 
     this.callback = cb;
+    this.ccb = ccb; // ccb == (called when the dropdown is opened)
     this.maxHeight = (18 * 5 + 4) * this.scale
 
     this.dropRect = new Rectangle(0, 0, this.tw, this.th, true, 3);
@@ -1929,6 +1950,7 @@ class SVGSelect extends Component {
       this.expand();
     }
     this.expanded = 1 - this.expanded; // math magic :D
+    this.ccb(this.expanded);
   }
   expand() {
     this.bgRect.setStroke({
