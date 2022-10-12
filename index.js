@@ -1,5 +1,21 @@
+
+/**
+ * Base class for every component
+ * @class
+ * @classDesc The base class for every "complex" component, doing some of the trivial work.
+ */
 class Component {
-  constructor(x, y, width, height, scale) {
+  /**
+   * @description Initiates a new component
+   *
+   * @param  {number} x       X position in the parent SVG
+   * @param  {number} y       Y position in the parent SVG
+   * @param  {number} width   Height, for calculations
+   * @param  {number} height  Width, for calculations
+   * @param  {number} scale=1 The scale of the values
+   * @return {Component}      The component object
+   */
+  constructor(x, y, width, height, scale=1) {
     this.x = x;
     this.y = y;
     this.width = width;
@@ -28,6 +44,12 @@ class Component {
 
     return this;
   }
+
+  /**
+   * @description   Updates the attributes of the SVG element in the DOM
+   *
+   * @return {void} Void
+   */
   updateAttributes() { // variable attributes
     this.tw = this.width * this.scale; // true width: the width when the proper scale is applied
     this.th = this.height * this.scale; // same as tw but with height
@@ -51,6 +73,12 @@ class Component {
     });
   }
 
+
+  /**
+   * @description      Moves the svg container to the top of the parent. The parent has to be specified earlier by setting .renderContainer to an HTML element
+   *
+   * @return {boolean} Wether moving could be done or not. Returns false, if renderContainer isn't set.
+   */
   moveToTop() { // moves the current component to the top of the container
     if (!this.renderContainer) return false;
     if (this.renderContainer.querySelector("#connectors")) {
@@ -64,6 +92,15 @@ class Component {
     }
   }
 
+
+  /**
+   * @description Change the coordinates in the parent svg element
+   *
+   * @param  {object} pos   The new position object
+   * @param  {number} pos.x X coordinate
+   * @param  {number} pos.y Y coordinate
+   * @return {object}       The new position
+   */
   setPosition(pos) {
     this.x = pos.x;
     this.y = pos.y;
