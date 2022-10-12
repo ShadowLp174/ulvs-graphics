@@ -107,7 +107,14 @@ class Component {
     this.updateAttributes();
     return pos;
   }
-  createSVGElement(c) { // create the whole svg element and return it
+
+  /**
+   * @description Puts together the HTML element with all it's sub element, ready to be added to a parent.
+   *
+   * @param  {HTMLElement} c=null (Optional) Equivalent to setting the .renderContainer property.
+   * @return {HTMLElement}        Returns the HTML element, containing all the children.
+   */
+  createSVGElement(c=null) { // create the whole svg element and return it
     this.renderContainer = c;
     this.container.innerHTML = "";
     this.elements.forEach((elem) => { // loop through each sub-element
@@ -281,6 +288,12 @@ class UserInteractionManager {
     });
   }
 }
+
+/**
+ * @class
+ * @classdesc The component creating the output dots, that can be used to connect to input sockets.
+ * @augments  Component
+ */
 class OutputPlugComponent extends Component {
   static Type = {
     BOOLEAN: "bool",
@@ -309,6 +322,18 @@ class OutputPlugComponent extends Component {
     int: "#427fbd",
     any: ""
   }
+
+  /**
+   * @description Initiate the OututPlug object.
+   *
+   * @see    {@link Component.constructor}  For the base parameters (x, y, ...)
+   * @param  {string} type         The type of the plug. All of the outgoing connectors will only connect to compatible sockets. Also changes in design. See OutputPlugComponent.Type for the types.
+   * @param  {object} engine       The SVGEngine object that contains this plug.
+   * @param  {object} node         The object type of Node, this plug is attached to.
+   * @param  {string} styleType="" The style of the Connector. See the Connector class for more details.
+   * @param  {string} label=""     The label of the plug.
+   * @return {object}              The OutputPlugComponent object.
+   */
   constructor(x, y, width, height, scale, type, engine, node, styleType="", label="") {
     super(x, y, width, height, scale);
 
