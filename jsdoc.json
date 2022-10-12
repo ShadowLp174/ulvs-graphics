@@ -1,0 +1,22 @@
+{
+  "opts": {
+    "template": "node_modules/better-docs",
+    "destination": "./docs"
+  },
+  "source": {
+    "include": ["index.js"],
+    "includePattern": ".+\\.js(doc|x)?$",
+    "excludePattern": "(^|\\/|\\\\)_"
+  },
+  "sourceType": "module",
+  "tags": {
+    "allowUnknownTags": true,
+    "dictionaries": ["jsdoc","closure"]
+  },
+  "templates": {
+    "cleverLinks": false,
+    "monospaceLinks": false
+  },
+  "plugins": [],
+  "recurseDepth": 10
+}

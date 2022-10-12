@@ -256,18 +256,21 @@ class OutputPlugComponent extends Component {
     bool: "#a44747",
     connect: "#ffffff",
     num: "#427fbd",
-    int: "#427fbd"
+    int: "#427fbd",
+    any: "transparent"
   }
   static TypeLabel = {
     bool: "BOOL",
     num: "NUM",
-    int: "INT"
+    int: "INT",
+    any: ""
   }
   static ConnectorColor = {
     bool: "#a44747",
     connect: "#808080",
     num: "#427fbd",
-    int: "#427fbd"
+    int: "#427fbd",
+    any: ""
   }
   constructor(x, y, width, height, scale, type, engine, node, styleType="", label="") {
     super(x, y, width, height, scale);
@@ -334,6 +337,13 @@ class OutputPlugComponent extends Component {
     this.typeLabel.container.style.fontSize = (9 * this.scale) + "px";
     this.typeLabel.setColor(this.color);
     this.elements.push({ element: this.typeLabel });
+  }
+  setType(type) {
+    this.type = type;
+    this.color = OutputPlugComponent.ColorMapping[this.type];
+    this.typeLabel.setColor(this.color);
+    this.typeLabel.setText(OutputPlugComponent.TypeLabel[this.type]);
+    this.oCircle.setColor(this.color);
   }
   setOpacity(o) {
     this.opacity = o;
@@ -432,25 +442,23 @@ class OutputPlugComponent extends Component {
   }
   snap() {
     const socket = this.snappingSocket.socket;
+    let p = this.getAbsCoords(socket.cCircle.container);
     this.activeConnector.moveTo({
-      x: this.snappingSocket.coords.x + 8 * socket.scale,
-      y: this.snappingSocket.coords.y + 8 * socket.scale
+      x: p.x + socket.cCircle.radius * socket.scale,
+      y: p.y + socket.cCircle.radius * socket.scale
     });
     this.activeConnector.connectedTo = this.snappingSocket.socket;
     this.activeConnector.connectedNode = this.snappingSocket.socket.node.id;
     socket.connected = true;
     socket.connector = this.activeConnector;
-    socket.node.addEventListener("move", (e) => {
+    socket.node.addEventListener("move", (_e) => {
       if (this.connected.length == 0 || !this.connected) return; // only execute if the node is currently connected
       const pos = this.getAbsCoords(socket.cCircle.container);
       pos.x += socket.cCircle.radius * socket.scale;
       pos.y += socket.cCircle.radius * socket.scale;
-      this.connected.forEach((socket) => {
-        if (socket.connectedNode != e.detail.node.id) return;
-        socket.moveTo(pos);
-      });
+      socket.connector.moveTo(pos);
     });
-    socket.connect();
+    socket.connect(this.activeConnector);
     this.connected.push(this.activeConnector);
     socket.cCircle.setRadius(8 * socket.scale); // reset socket proportions
     this.dragging = false;
@@ -466,6 +474,7 @@ class OutputPlugComponent extends Component {
       this.emit("connector", this.activeConnector);
     }
     this.interactions.initListeners(this.oCircle.container, (e) => {
+      if (this.type == OutputPlugComponent.Type.ANY) return;
       this.mouseDown(e);
     }, () => {}, () => {});
     this.node.addEventListener("move", () => {
@@ -543,6 +552,11 @@ class OutputPlugComponent extends Component {
     this.setSubComponentAttributes();
   }
 }
+/**
+ * Creates a new InputSocketComponent
+ * @class
+ * @classdesc The object for ingoing plug connections. On nodes
+ */
 class InputSocketComponent extends Component {
   static Type = {
     BOOLEAN: "bool",
@@ -556,13 +570,35 @@ class InputSocketComponent extends Component {
     bool: "#a44747",
     connect: "#ffffff",
     num: "#427fbd",
-    int: "#427fbd"
+    int: "#427fbd",
+    any: "#ffffff"
+  }
+  static StrokeMapping = {
+    bool: { stroke: "transparent", width: 1 },
+    connect: { stroke: "transparent", width: 1 },
+    int: { stroke: "transparent", width: 1 },
+    num: { stroke: "transparent", width: 1 },
+    any: { stroke: "#ffffff", width: 1 }
   }
   static TypeLabel = {
     bool: "BOOL",
     num: "NUM",
-    int: "INT"
+    int: "INT",
+    any: "ANY"
   }
+  /**
+   * constructor - Initiates a new inputSocketComponent
+   *
+   * @param  {Number} x             x position in the parent svg
+   * @param  {Number} y             y position in the parent svg
+   * @param  {Number} width         the width of he inputsocket
+   * @param  {Number} height        the height
+   * @param  {Number} scale         the scale, set to 1 to ignore
+   * @param  {String} type          type of the socket, see InputSocketComponent.Type for types
+   * @param  {Node} node            parent node object, the socket is attached to
+   * @param  {String} label         the label of the socket
+   * @param  {Boolean} checkbox=true Wether or not to include a checkbox (only for boolean sockets)
+   */
   constructor(x, y, width, height, scale, type, node, label, checkbox=true) {
     super(x, y, width, height, scale);
 
@@ -581,6 +617,8 @@ class InputSocketComponent extends Component {
     this.elements.push({ element: this.cCircle, render: (el) => el.createSVGElement() });
 
     this.con; // the connector
+    this.conCallback = null;
+    this.phantomTypes = []; // only important if type ANY; see Connector.typesCompatible
 
     if (type !== InputSocketComponent.Type.CONNECTOR) {
       this.initType();
@@ -600,7 +638,11 @@ class InputSocketComponent extends Component {
   set connector(connector) {
     return this.con = connector;
   }
-  connect() {
+  setConnectionCallback(cb) {
+    this.conCallback = cb;
+  }
+  connect(connector) {
+    if (this.conCallback) this.conCallback(connector);
     if (!this.checkbox) return;
     if (!this.box) return;
     this.node.reset();
@@ -649,6 +691,29 @@ class InputSocketComponent extends Component {
     this.typeLabel.container.style.fontSize = (9 * this.scale) + "px";
     this.typeLabel.setColor(this.color);
     this.elements.push({ element: this.typeLabel, render: (el) => el.createSVGElement() });
+
+    this.modify();
+  }
+  modify() {
+    switch(this.type) {
+      case InputSocketComponent.Type.ANY:
+        this.cCircle.setColor("transparent");
+        this.cCircle.setStroke(InputSocketComponent.StrokeMapping[this.type]);
+        this.cCircle.setRadius(this.cCircle.radius * 0.7, false);
+      break;
+      default:
+
+      break;
+    }
+  }
+  setType(type) {
+    this.type = type;
+    this.color = InputSocketComponent.ColorMapping[this.type];
+    console.log(this.type, InputSocketComponent.StrokeMapping[this.type]);
+    this.cCircle.setStroke(InputSocketComponent.StrokeMapping[this.type]);
+    this.cCircle.setColor(this.color);
+    this.typeLabel.setColor(this.color);
+    this.typeLabel.setText(InputSocketComponent.TypeLabel[this.type]);
   }
   setSubComponentAttributes() { // update sub-elements
     this.cCircle.radius = 8 * this.scale;
@@ -964,7 +1029,7 @@ class Node extends Component {
       this.bgRect.setHeight(this.bgRect.height + (28 * diff) * this.scale);
     }
 
-    return this.inputSockets;
+    return socket;
   }
   addOutputPlug(type, label, style) {
     const plug = new OutputPlugComponent(this.tw - (36 - 8) * this.scale, (28 * this.outputPlugs.length) * this.scale, 16, 34, this.scale, type, this.parentSVGEngine, (this.embedNode || this), style, label);
@@ -985,7 +1050,7 @@ class Node extends Component {
       let diff = this.outputPlugs.length - currLength;
       this.bgRect.setHeight(this.bgRect.height + (28 * diff) * this.scale);
     }
-    return this.outputPlugs;
+    return plug;
   }
 }
 class ConditionNode extends Node {
@@ -1060,6 +1125,33 @@ class AdditionNode extends Node {
     this.addOutputPlug(OutputPlugComponent.Type.NUMBER, "Result", type);
 
     return this;
+  }
+}
+class GeneralAdditionNode extends Node {
+  constructor(x, y, scale, svgEngine, type="", embed=null, embedNode=null) {
+    super(x, y, scale, svgEngine);
+
+    this.setName("Add");
+    this.setClass(Node.Class.BASIC);
+
+    if (embed) this.embedBody(embed, embedNode);
+
+    this.a = this.addInputSocket(InputSocketComponent.Type.ANY, "A", type)
+    this.a.setConnectionCallback((connector) => {
+      this.a.setType(connector.plug.type);
+    });
+    this.b = this.addInputSocket(InputSocketComponent.Type.ANY, "B", type)
+    this.b.setConnectionCallback((connector) => {
+      console.log("b", connector);
+
+    });
+
+    this.addOutputPlug(OutputPlugComponent.Type.ANY, "Result", type);
+
+    return this;
+  }
+  typeLogic(type) {
+
   }
 }
 class MultiplicationNode extends Node {
@@ -2546,6 +2638,9 @@ engine.addComponent(start);
 
 const math = new MathNode(100, 100, 1, engine, "bezier");
 engine.addComponent(math);
+
+const add = new GeneralAdditionNode(100, 250, 1, engine, "bezier");
+engine.addComponent(add);
 
 document.body.style.overflow = "hidden";
 

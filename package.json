@@ -1,0 +1,23 @@
+{
+  "name": "ulvs-graphics",
+  "version": "1.0.0",
+  "description": "The graphics engine for ULVS",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "docs": "jsdoc -c jsdoc.json"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/carroted/ulvs-graphics.git"
+  },
+  "author": "ShadowLp174",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/carroted/ulvs-graphics/issues"
+  },
+  "homepage": "https://github.com/carroted/ulvs-graphics#readme",
+  "dependencies": {
+    "better-docs": "^2.7.2"
+  }
+}
