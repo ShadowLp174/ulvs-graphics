@@ -15,9 +15,14 @@ There are two index files. One PHP and one HTML file. The PHP file is for Apache
 ![Fourth concept art image](https://raw.githubusercontent.com/Carroted/ulvs-graphics/master/assets/concept-art3.png)
 Concept arts by Alex_Sour
 
+# Documentation
+
+The documentation can be found on the github pages [here](https://carroted.github.io/ulvs-graphics/docs). It is still in development and will be improved over time.
+
 ## TODOs
 
+*incomplete*
+
 - Drawable comments
-- Finish Condition nodes
 - "Code Blocks" Multiple Nodes snapling together
 - Panning right click; Selecting left click
