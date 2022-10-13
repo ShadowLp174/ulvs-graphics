@@ -1,7 +1,8 @@
 {
   "opts": {
     "template": "node_modules/better-docs",
-    "destination": "./docs"
+    "destination": "./docs",
+    "readme": "README.md"
   },
   "source": {
     "include": ["index.js"],

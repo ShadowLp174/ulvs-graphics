@@ -294,7 +294,24 @@ class UserInteractionManager {
  * @classdesc The component creating the output dots, that can be used to connect to input sockets.
  * @augments  Component
  */
+
+/**
+ * The type used for OutputPlugComponents
+ * @typedef {(
+ *  OutputPlugComponent.Type.BOOLEAN |
+ *  OutputPlugComponent.Type.INTEGER |
+ *  OutputPlugComponent.Type.STRING |
+ *  OutputPlugComponent.Type.CONNECTOR |
+ *  OutputPlugComponent.Type.ANY
+ *  )} OutputPlugComponentType
+ */
 class OutputPlugComponent extends Component {
+
+  /**
+   * Enum for Plug types; (BOOLEAN|NUMBER|INTEGER|CONNECTOR|ANY)
+   * @enum {string}
+   * @constant
+   */
   static Type = {
     BOOLEAN: "bool",
     NUMBER: "num",
@@ -324,15 +341,16 @@ class OutputPlugComponent extends Component {
   }
 
   /**
-   * @description Initiate the OututPlug object.
+   * @description Initiate the OututPlugComponent object.
    *
+   * @constructs
    * @see    {@link Component.constructor}  For the base parameters (x, y, ...)
-   * @param  {string} type         The type of the plug. All of the outgoing connectors will only connect to compatible sockets. Also changes in design. See OutputPlugComponent.Type for the types.
-   * @param  {object} engine       The SVGEngine object that contains this plug.
-   * @param  {object} node         The object type of Node, this plug is attached to.
-   * @param  {string} styleType="" The style of the Connector. See the Connector class for more details.
-   * @param  {string} label=""     The label of the plug.
-   * @return {object}              The OutputPlugComponent object.
+   * @param  {OutputPlugComponentType} type The type of the plug. All of the outgoing connectors will only connect to compatible sockets. Also changes in design. See OutputPlugComponent.Type for the types.
+   * @param  {object} engine                The SVGEngine object that contains this plug.
+   * @param  {object} node                  The object type of Node, this plug is attached to.
+   * @param  {string} styleType=""          The style of the Connector. See the Connector class for more details.
+   * @param  {string} label=""              The label of the plug.
+   * @return {object}                       The OutputPlugComponent object.
    */
   constructor(x, y, width, height, scale, type, engine, node, styleType="", label="") {
     super(x, y, width, height, scale);
@@ -400,6 +418,13 @@ class OutputPlugComponent extends Component {
     this.typeLabel.setColor(this.color);
     this.elements.push({ element: this.typeLabel });
   }
+
+  /**
+   * @description Change the type of the plug after initialization
+   *
+   * @param  {OutputPlugComponentType} type Type to set the plug to.
+   * @return {void}
+   */
   setType(type) {
     this.type = type;
     this.color = OutputPlugComponent.ColorMapping[this.type];
@@ -407,6 +432,13 @@ class OutputPlugComponent extends Component {
     this.typeLabel.setText(OutputPlugComponent.TypeLabel[this.type]);
     this.oCircle.setColor(this.color);
   }
+
+  /**
+   * @description Set the opacity of this plug (every child element included).
+   *
+   * @param  {(string|float|number)} o The CSS opacity
+   * @return {void}
+   */
   setOpacity(o) {
     this.opacity = o;
     this.container.style.opacity = o;
@@ -431,9 +463,26 @@ class OutputPlugComponent extends Component {
 
     return { x: left, y: top };
   }
+
+  /**
+   * @description Get the distance between two points in a 2D system.
+   *
+   * @param  {number} x  X coordinate of the first point
+   * @param  {number} y  Y coordinate of the first point
+   * @param  {number} x1 X coordinate of the second point
+   * @param  {number} y1 Y coordinate of the second point
+   * @return {number}    The distance between the two points
+   */
   distance(x, y, x1, y1) { // get the distance between two points x,y and x1,y1
     return Math.sqrt(Math.pow(x - x1, 2) + Math.pow(y - y1, 2));
   }
+
+  /**
+   * @description Set the type of newly created connectors
+   *
+   * @param  {string} type The connector type. See the connector class for possible options.
+   * @return {void}
+   */
   setConnectorType(type) {
     this.styleType = type;
   }
@@ -454,6 +503,14 @@ class OutputPlugComponent extends Component {
       });
     });
   }
+
+  /**
+   * @description Creates a collection of suitable sockets for connector
+   * connections by searching recursively through the elements inside the parent
+   * SVG engine object declared on initialization.
+   *
+   * @return {Array.<InputSocketComponent>} The collected sockets.
+   */
   getSockets() {
     const sockets = [];
     const check = (component) => {
@@ -490,6 +547,14 @@ class OutputPlugComponent extends Component {
     });
     return sockets;
   }
+
+  /**
+   * @description Set the colour of the parts creating the connector,
+   * like the triangle and the dot.
+   *
+   * @param  {string} c The CSS colour you want to switch to.
+   * @return {void}
+   */
   setColor(c) {
     this.color = c;
     this.oCircle.setColor(c);
@@ -614,12 +679,30 @@ class OutputPlugComponent extends Component {
     this.setSubComponentAttributes();
   }
 }
+
+/**
+ * The type used for InputSocketComponents
+ * @typedef {(
+ *  InputSocketComponent.Type.BOOLEAN |
+ *  InputSocketComponent.Type.INTEGER |
+ *  InputSocketComponent.Type.FLOAT |
+ *  InputSocketComponent.Type.STRING |
+ *  InputSocketComponent.Type.CONNECTOR |
+ *  InputSocketComponent.Type.ANY
+ *  )} InputSocketComponentType
+ */
 /**
  * Creates a new InputSocketComponent
  * @class
  * @classdesc The object for ingoing plug connections. On nodes
+ * @augments Component
  */
 class InputSocketComponent extends Component {
+
+  /**
+   * @enum
+   * @description Valid types used for InputSocketComponents
+   */
   static Type = {
     BOOLEAN: "bool",
     CONNECTOR: "connect",
@@ -649,7 +732,7 @@ class InputSocketComponent extends Component {
     any: "ANY"
   }
   /**
-   * constructor - Initiates a new inputSocketComponent
+   * @description Initiates a new inputSocketComponent
    *
    * @param  {Number} x             x position in the parent svg
    * @param  {Number} y             y position in the parent svg
@@ -700,9 +783,23 @@ class InputSocketComponent extends Component {
   set connector(connector) {
     return this.con = connector;
   }
+
+  /**
+   * @description Specify the function to execute when a connector gets attached.
+   *
+   * @param  {function} cb The callback. The function gets an argument, the connector that has been connected.
+   * @return {void}
+   */
   setConnectionCallback(cb) {
     this.conCallback = cb;
   }
+
+  /**
+   * @description Callback function for Connectors. This function gets called as soon as a connector connects.
+   *
+   * @param  {Connector} connector The connector that connected
+   * @return {void}
+   */
   connect(connector) {
     if (this.conCallback) this.conCallback(connector);
     if (!this.checkbox) return;
@@ -712,7 +809,13 @@ class InputSocketComponent extends Component {
     this.offset = 0;
     this.relocateLabels();
   }
-  disconnect() {
+  /**
+   * @description Callback function for Connectors. This function gets called as soon as a connector disconnects.
+   *
+   * @param  {Connector} connector The connector that disconnected
+   * @return {void}
+   */
+  disconnect(connector) {
     if (!this.checkbox) return;
     if (!this.box) return;
     if (this.node.state) this.node.simulate(this.node.state);
@@ -768,10 +871,16 @@ class InputSocketComponent extends Component {
       break;
     }
   }
+
+  /**
+   * @description Changes the data type of this socket after initialization.
+   *
+   * @param  {InputSocketComponentType} type The new data type.
+   * @return {void}
+   */
   setType(type) {
     this.type = type;
     this.color = InputSocketComponent.ColorMapping[this.type];
-    console.log(this.type, InputSocketComponent.StrokeMapping[this.type]);
     this.cCircle.setStroke(InputSocketComponent.StrokeMapping[this.type]);
     this.cCircle.setColor(this.color);
     this.typeLabel.setColor(this.color);
@@ -1461,7 +1570,7 @@ class Connector extends Component {
   }
   disconnect() {
     this.connectedTo.connected = false;
-    this.connectedTo.disconnect();
+    this.connectedTo.disconnect(this);
     this.connectedTo = { id: null };
     this.connectedNode = null;
     this.plug.connected.splice(this.plug.connected.findIndex(el => el.id == this.id), 1);
@@ -1472,7 +1581,7 @@ class Connector extends Component {
       this.plug.dragging = true; // the moving and destroying is done in the plugcomponent
       this.plug.snapping = false;
       this.connectedTo.connected = false;
-      this.connectedTo.disconnect();
+      this.connectedTo.disconnect(this);
       this.connectedTo = { id: null };
       this.connectedNode = null;
       this.plug.connected.splice(this.plug.connected.findIndex(el => el.id == this.id), 1);
