@@ -317,7 +317,10 @@ class OutputPlugComponent extends Component {
     NUMBER: "num",
     INTEGER: "int",
     CONNECTOR: "connect",
-    ANY: "any"
+    ANY: "any",
+    FLOAT: "float",
+    ARRAY: "arr",
+    STRING: "str"
   }
   static ColorMapping = {
     bool: "#a44747",
@@ -628,7 +631,7 @@ class OutputPlugComponent extends Component {
       });
       var reset = () => {
         const s = this.snappingSocket.socket;
-        s.cCircle.setRadius(8 * s.scale);
+        s.cCircle.setRadius(s.defRadius * s.scale);
         this.snapping = false;
       }
       if (this.connectables.length == 0) return;
@@ -709,7 +712,9 @@ class InputSocketComponent extends Component {
     NUMBER: "num",
     INTEGER: "int",
     FLOAT: "float",
-    ANY: "any"
+    ANY: "any",
+    ARRAY: "arr",
+    STRING: "str"
   }
   static ColorMapping = {
     bool: "#a44747",
@@ -760,9 +765,10 @@ class InputSocketComponent extends Component {
     this.cCircle = new Circle(0, 0, 8 * this.scale, true);
     this.cCircle.setColor(this.color);
     this.elements.push({ element: this.cCircle, render: (el) => el.createSVGElement() });
+    this.defRadius = 8 * this.scale; // the default radius, used for connectors
 
     this.con; // the connector
-    this.conCallback = null;
+    this.conCallback = null, this.deconCallback = null;;
     this.phantomTypes = []; // only important if type ANY; see Connector.typesCompatible
 
     if (type !== InputSocketComponent.Type.CONNECTOR) {
@@ -787,11 +793,20 @@ class InputSocketComponent extends Component {
   /**
    * @description Specify the function to execute when a connector gets attached.
    *
-   * @param  {function} cb The callback. The function gets an argument, the connector that has been connected.
+   * @param  {function} cb The callback. The function receives the connector that has been connected as argument.
    * @return {void}
    */
   setConnectionCallback(cb) {
     this.conCallback = cb;
+  }
+  /**
+   * @description Specify the function to execute when a connector gets detached.
+   *
+   * @param  {function} cb The callback. The function receives the connector that has been deconnected as argument.
+   * @return {void}
+   */
+  setDisconnectionCallback(cb) {
+    this.deconCallback = cb;
   }
 
   /**
@@ -816,6 +831,7 @@ class InputSocketComponent extends Component {
    * @return {void}
    */
   disconnect(connector) {
+    if (this.deconCallback) this.deconCallback(connector);
     if (!this.checkbox) return;
     if (!this.box) return;
     if (this.node.state) this.node.simulate(this.node.state);
@@ -857,13 +873,14 @@ class InputSocketComponent extends Component {
     this.typeLabel.setColor(this.color);
     this.elements.push({ element: this.typeLabel, render: (el) => el.createSVGElement() });
 
-    this.modify();
+    this.modify(true);
   }
-  modify() {
+  modify(isInit=false) {
     switch(this.type) {
       case InputSocketComponent.Type.ANY:
         this.cCircle.setColor("transparent");
         this.cCircle.setStroke(InputSocketComponent.StrokeMapping[this.type]);
+        if (isInit) this.defRadius *= 0.7;
         this.cCircle.setRadius(this.cCircle.radius * 0.7, false);
       break;
       default:
@@ -885,6 +902,7 @@ class InputSocketComponent extends Component {
     this.cCircle.setColor(this.color);
     this.typeLabel.setColor(this.color);
     this.typeLabel.setText(InputSocketComponent.TypeLabel[this.type]);
+    this.modify();
   }
   setSubComponentAttributes() { // update sub-elements
     this.cCircle.radius = 8 * this.scale;
@@ -902,6 +920,15 @@ class InputSocketComponent extends Component {
     this.scale = s;
     super.updateAttributes();
     this.setSubComponentAttributes();
+  }
+  resetPhantoms() {
+    let removed = this.phantomTypes.length;
+    this.phantomTypes.length = 0;
+    return removed;
+  }
+  addPhantom(...types) {
+    this.phantomTypes.push(...types);
+    return this.phantomTypes;
   }
 }
 class Node extends Component {
@@ -1310,19 +1337,48 @@ class GeneralAdditionNode extends Node {
     this.a = this.addInputSocket(InputSocketComponent.Type.ANY, "A", type)
     this.a.setConnectionCallback((connector) => {
       this.a.setType(connector.plug.type);
+      this.updatePlug();
+      /*this.b.resetPhantoms();
+      this.b.addPhantom(...this.typeLogic(connector.plug.type));*/
     });
+    this.a.setDisconnectionCallback((_c) => {
+      this.a.setType(InputSocketComponent.Type.ANY);
+      this.updatePlug();
+    })
     this.b = this.addInputSocket(InputSocketComponent.Type.ANY, "B", type)
     this.b.setConnectionCallback((connector) => {
-      console.log("b", connector);
-
+      this.b.setType(connector.plug.type);
+      this.updatePlug();
     });
+    this.b.setDisconnectionCallback((_c) => {
+      this.b.setType(InputSocketComponent.Type.ANY);
+      this.updatePlug();
+    })
 
-    this.addOutputPlug(OutputPlugComponent.Type.ANY, "Result", type);
+    this.plug = this.addOutputPlug(OutputPlugComponent.Type.ANY, "Result", type);
 
     return this;
   }
-  typeLogic(type) {
-
+  updatePlug() {
+    console.log(this.a.type, this.b.type);
+    this.plug.setType(this.resultType(this.a.type, this.b.type));
+  }
+  resultType(...types) {
+    const map = {
+      [OutputPlugComponent.Type.BOOLEAN]: -2,
+      [OutputPlugComponent.Type.INTEGER]: -1,
+      [OutputPlugComponent.Type.FLOAT]: 0,
+      [OutputPlugComponent.Type.NUMBER]: 1,
+      [OutputPlugComponent.Type.STRING]: 2,
+      [OutputPlugComponent.Type.ARRAY]: 3,
+      [OutputPlugComponent.Type.ANY]: 4,
+    }
+    let highest = null;
+    types.forEach(el => {
+      if (highest == null) return highest = el;
+      if (map[el] > map[highest]) return highest = el;
+    });
+    return highest;
   }
 }
 class MultiplicationNode extends Node {
@@ -1580,13 +1636,14 @@ class Connector extends Component {
     this.plug.interactions.initListeners(el, () => {
       this.plug.dragging = true; // the moving and destroying is done in the plugcomponent
       this.plug.snapping = false;
+      this.plug.connected.splice(this.plug.connected.findIndex(el => el.id == this.id), 1);
+      this.plug.initSnapping();
+      this.plug.activeConnector = this;
+      if (!this.connectedTo) return console.log("Weird stuff happening here. <Connector>(Line 1612)");
       this.connectedTo.connected = false;
       this.connectedTo.disconnect(this);
       this.connectedTo = { id: null };
       this.connectedNode = null;
-      this.plug.connected.splice(this.plug.connected.findIndex(el => el.id == this.id), 1);
-      this.plug.initSnapping();
-      this.plug.activeConnector = this;
     }, () => {}, () => {});
   }
 }
