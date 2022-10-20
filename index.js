@@ -131,7 +131,22 @@ class Component {
     this.parentSVGEngine = e;
   }
 }
+
+/**
+ * @class
+ * @classdesc The viewport object is one of the basic objects beside, circle,
+ * rectangle and similar. You can use this to group elements together in a new
+ * viewport and new coordinates for every sub-component.
+ */
 class Viewport {
+  /**
+   * @description Initiates the Viewport object
+   *
+   * @param  {number} x The x position of the viewport in the parent.
+   * @param  {number} y The y position of the viewport in the parent.
+   * @returns {Viewport}
+   * @constructor
+   */
   constructor(x, y) {
     this.x = x;
     this.y = y;
@@ -144,6 +159,16 @@ class Viewport {
 
     return this;
   }
+
+  /**
+   * @description Set the position of the viewport in the parent. This will move
+   * the children as well.
+   *
+   * @param  {object} pos The new position of the viewport.
+   * @param  {number} pos.x The new x position.
+   * @param  {number} pos.y The new y position.
+   * @return {void}
+   */
   setPosition(pos) {
     this.x = pos.x;
     this.y = pos.y;
@@ -155,6 +180,16 @@ class Viewport {
       c.setScale(s);
     });
   }
+
+  /**
+   * @description Add a component to the viewport that will be rendered inside.
+   *
+   * @param {(Component|object)} c The component to add.
+   * @param {function}           render=(el)=>el.createSVGElement() The function
+   * that will be called to render the component. It has to return an HTMLElement
+   * of any type.
+   * @returns {void}
+   */
   addComponent(c, render=(el)=>el.createSVGElement()) {
     this.components.push({ element: c, render: render });
   }
@@ -900,9 +935,10 @@ class InputSocketComponent extends Component {
     this.color = InputSocketComponent.ColorMapping[this.type];
     this.cCircle.setStroke(InputSocketComponent.StrokeMapping[this.type]);
     this.cCircle.setColor(this.color);
+    this.defRadius = 8 * this.scale;
     this.typeLabel.setColor(this.color);
     this.typeLabel.setText(InputSocketComponent.TypeLabel[this.type]);
-    this.modify();
+    this.modify(true);
   }
   setSubComponentAttributes() { // update sub-elements
     this.cCircle.radius = 8 * this.scale;
