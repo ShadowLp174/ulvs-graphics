@@ -1,5 +1,6 @@
-on: repository_dispatch:
-  types: [sync-mirror]
+on:
+  repository_dispatch:
+    types: [sync-mirror]
 jobs:
   git-sync:
     runs-on: ubuntu-latest
