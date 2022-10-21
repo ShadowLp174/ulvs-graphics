@@ -1,0 +1,14 @@
+on: repository_dispatch:
+  types: [sync-mirror]
+jobs:
+  git-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: git-sync
+        uses: wei/git-sync@v3
+        with:
+          source_repo: "git@codeberg.org:ShadowLp174/OpenVS-Graphics.git"
+          source_branch: "master"
+          destination_repo: "carroted/ulvs-graphics"
+          destination_branch: "master"
+          source_ssh_private_key: ${{ secrets.CODEBERG_SSH_PRIVATE_KEY }} # optional, will override `SSH_PRIVATE_KEY`
