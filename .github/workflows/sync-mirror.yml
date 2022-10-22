@@ -3,7 +3,7 @@ name: Pull changes from codeberg
 on:
   repository_dispatch:
     types:
-      - webhook
+      - sync-mirror
 jobs:
   git-sync:
     runs-on: ubuntu-latest
@@ -13,6 +13,7 @@ jobs:
         with:
           source_repo: "git@codeberg.org:ShadowLp174/OpenVS-Graphics.git"
           source_branch: "master"
-          destination_repo: "carroted/ulvs-graphics"
+          destination_repo: "git@github.com:Carroted/ulvs-graphics.git"
           destination_branch: "master"
-          source_ssh_private_key: ${{ secrets.CODEBERG_SSH_PRIVATE_KEY }} # optional, will override `SSH_PRIVATE_KEY`
+          source_ssh_private_key: ${{ secrets.CODEBERG_SSH_PRIVATE_KEY }}
+          destination_ssh_private_key: ${{ secrets.GH_SSH_PRIVATE_KEY }}
