@@ -967,12 +967,23 @@ class InputSocketComponent extends Component {
     return this.phantomTypes;
   }
 }
+
+/**
+ * @class
+ * @classdesc The base Node class. Every complex node should extend this.
+ * @augments Component
+ */
 class Node extends Component {
   static ClassColor = {
     basic: "#8a5794",
     event: "#779457",
     deviceinfo: "#946148"
   };
+  /**
+   * @enum
+   * @typedef {(string)} NodeClass
+   * @description Accepted Node categories.
+   */
   static Class = {
     BASIC: "basic",
     EVENT: "event",
@@ -983,6 +994,16 @@ class Node extends Component {
     event: "Event",
     deviceinfo: "Device Info"
   }
+
+  /**
+   * @description Initiates a new Node object
+   *
+   * @param  {number} x         The x position in the current viewport or container.
+   * @param  {number} y         The y position in the current viewport or container.
+   * @param  {number} scale     The scale of the Node.
+   * @param  {object} svgEngine The SVGEngine object, the node is added to.
+   * @return {Node}           The new Node object.
+   */
   constructor(x, y, scale, svgEngine) {
     let height = 37.5 * scale;
     let width = 200 * scale;
@@ -1084,6 +1105,11 @@ class Node extends Component {
 
     return this;
   }
+
+  /**
+   * @description Returns an up-to-date copy of the container of the current parent SVG engine.
+   * @type {HTMLElement}
+   */
   get renderContainer() {
     // getter to keep return an up-to-date copy of the element by the svg engine, even if it changes
     return this.parentSVGEngine.renderElement;
@@ -1091,6 +1117,12 @@ class Node extends Component {
   set renderContainer(_i) {
     // console.warn("Don't do that! [Node.renderContainer is readonly] trying to set to '" + i +"'");
   }
+
+  /**
+   * @description Disconnects all incoming or outgoing connectors.
+   *
+   * @return {void}
+   */
   clearConnections() {
     [...this.inputSockets, ...this.sockets].forEach(socket => {
       if (!socket.connected) return;
@@ -1123,6 +1155,22 @@ class Node extends Component {
       plug.setConnectorType(type);
     });
   }
+
+  /**
+   * @callback Node~EventCallback
+   * @param {object} event        The event object.
+   * @param {object} event.detail The data that is delivered if it is a custom event, like the "move" event.
+   * @see {@link https://developer.mozilla.org/en-US/docs/Web/API/Event} for
+   * further information about the events structure. In case of a custom event
+   * like "move" see {@link https://developer.mozilla.org/en-US/docs/Web/API/CustomEvent}
+   */
+  /**
+   * @description Add an event listener to the node.
+   *
+   * @param  {("move")} event The event that should be listened for.
+   * @param  {Node~EventCallback} cb The callback function.
+   * @return {object}                The event listener.
+   */
   addEventListener(event, cb) {
     return (this.embedNode.eventElem || this.eventElem).addEventListener(event, cb);
   }
@@ -1181,10 +1229,24 @@ class Node extends Component {
     super.updateAttributes();
     this.setSubComponentAttributes();
   }
+
+  /**
+   * @description Attach an attachment to the node object.
+   *
+   * @param  {Attachment} at The attachment that should be attached.
+   * @return {void}
+   */
   addAttachment(at) { // attachments like the move listener
     this.attachments.push(at);
     at.attach(this);
   }
+
+  /**
+   * @description Change the name of the node after initialization.
+   *
+   * @param  {string} name The new name
+   * @return {Text#setText}
+   */
   setName(name) {
     this.name = name;
     if (!this.nText) {
@@ -1195,6 +1257,13 @@ class Node extends Component {
     }
     return this.nText.setText(name);
   }
+
+  /**
+   * @description Change the class after initialization.
+   *
+   * @param  {NodeClass} c The new class
+   * @return {void}
+   */
   setClass(c) {
     this.class = c;
     let className = Node.ClassName[c];
@@ -1209,6 +1278,13 @@ class Node extends Component {
     this.connectionOffset = delta;
     this.bgRect.setHeight(this.bgRect.height +  delta);
   }
+  /**
+   * @description Add a new program flow socket. Flow sockets/plugs are used to
+   * tell ULVS which nodes run when. The flow starts at a start node and then follows
+   * all connected flow connectors from node to node, resulting in a program order.
+   *
+   * @return {array} An array containing all of the current flow sockets.
+   */
   addSocket() {
     const socket = new InputSocketComponent((-8 * this.scale), (36 * this.sockets.length + this.connectionOffset) * this.scale, 16, 34, this.scale, InputSocketComponent.Type.CONNECTOR, (this.embedNode || this));
 
@@ -1224,6 +1300,15 @@ class Node extends Component {
 
     return this.sockets;
   }
+  /**
+   * @description Add a flow plug. Flow plugs can be used to create flow connections
+   * to flow sockets.
+   * @see See {@link Node#addSocket} for more info about the program flow.
+   *
+   * @param  {string} label A label that will be displayed left to the plug.
+   * @param  {("bezier"|"line")} style The style of the connector starting from this plug.
+   * @return {array}       Returns an array of all the attached plugs.
+   */
   addPlug(label, style) {
     //let metrics = Text.measureText(label);
     const text = new Text(this.tw - (34) * this.scale, (38 * this.plugs.length + this.connectionOffset) * this.scale, label, this.scale, Text.Anchor.END, Text.VerticalAnchor.TOP);
@@ -1252,6 +1337,15 @@ class Node extends Component {
 
     return this.plugs;
   }
+  /**
+   * @description Adds an InputSocket. These sockets can be used for data transfer.
+   * They are also typed and there are strict rules for which connector type can
+   * connect to which socket type.
+   *
+   * @param  {InputSocketComponentType} type  The type of the socket.
+   * @param  {string} label A label for the socket that will be displayed right to it.
+   * @return {InputSocketComponent} The initiated input socket.
+   */
   addInputSocket(type, label) {
     const socket = new InputSocketComponent((-8 * this.scale), (28 * this.inputSockets.length) * this.scale, 16*this.scale, 34*this.scale, this.scale, type, (this.embedNode || this), label);
 
@@ -1265,6 +1359,16 @@ class Node extends Component {
 
     return socket;
   }
+  /**
+   * @description Adds an OutputPlug to the node. These are used to create data
+   * connectors.
+   * @see See {@link Node#addInputSocket} for more details on data connections.
+   *
+   * @param  {OutputPlugComponentType} type The type of the plug
+   * @param  {string} label The label of the plug that will be displayed left to it.
+   * @param  {("bezier"|"line")} style The style of the connector.
+   * @return {OutputPlugComponent}       The initiated plug object
+   */
   addOutputPlug(type, label, style) {
     const plug = new OutputPlugComponent(this.tw - (36 - 8) * this.scale, (28 * this.outputPlugs.length) * this.scale, 16, 34, this.scale, type, this.parentSVGEngine, (this.embedNode || this), style, label);
 
@@ -1804,17 +1908,61 @@ class ConnectorManager {
     return this;
   }
 }
+
+/**
+ * @typedef {string} VerticalTextAnchor
+ * @property {string} TOP Align the top edge to the y coordinate
+ * @property {string} MIDDLE Align the text in the middle of the y coordinate.
+ * @property {string} BOTTOM Align the bottom of the text to the y coordinate.
+ * @see See {@link https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/dominant-baseline}
+ * for the documentation on HTML level.
+ */
+ /**
+  * @typedef {string} HorizontalTextAnchor
+  * @property {string} START Align the start of the text to the x coordinate
+  * @property {string} MIDDLE Aligne the middle of the text to the x coordinate
+  * @property {string} END Align the end of the text to the x coordinate
+  * @see See {@link https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/text-anchor}
+  * for an explanation of it.
+  */
+/**
+ * @class
+ * @classdesc A basic component to display text.
+ */
 class Text {
+  /**
+   * @enum {HorizontalTextAnchor}
+   * @description Valid values for horizontal anchoring of the text.
+   */
   static Anchor = {
     START: "start",
     MIDDLE: "middle",
     END: "end"
   }
+  /**
+   * @enum {VerticalTextAnchor}
+   * @description Valid values for vertical anchoring of the text.
+   */
   static VerticalAnchor = {
     TOP: "hanging",
     MIDDLE: "middle",
     BOTTOM: "auto"
   }
+  /**
+   * @description Initiates a new Text object.
+   *
+   * @param  {number} x                                  The x position in the parent container or viewport
+   * @param  {number} y                                  The y position in the parent container or viewport
+   * @param  {string} text                               The actual text content of the Text element.
+   * @param  {number} scale                              The scale of the text element
+   * @param  {HorizontalTextAnchor} anchor=Text.Anchor.START Aligns the text horizontally.
+   * @param  {VerticalTextAnchor} vAnchor=Text.VerticalAnchor.BOTTOM Aligns the text vertically.
+   * @return {Text}                                      The new Text object.
+   *
+   * @see See {@link https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/text-anchor}
+   * for more information about the horizontal anchor and {@link https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/dominant-baseline}
+   * for the vertical anchor.
+   */
   constructor(x, y, text, scale, anchor=Text.Anchor.START, vAnchor=Text.VerticalAnchor.BOTTOM) {
     this.x = x;
     this.y = y;
@@ -1876,6 +2024,12 @@ class Text {
     this.scale = scale
     this.updateAttributes();
   }
+  /**
+   * @description Set the text content of this element.
+   *
+   * @param  {string} t The new text content
+   * @return {void}
+   */
   setText(t) {
     this.txt = t;
     this.container.innerHTML = t;
