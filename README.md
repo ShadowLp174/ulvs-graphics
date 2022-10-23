@@ -7,6 +7,9 @@ This repo is under constant developement.
 
 There are two index files. One PHP and one HTML file. The PHP file is for Apache based servers and automatically updates the cached files when updated. For the HTML file (like on the pages site) you have to force-reload using Ctrl+Shift+R.
 
+[![Pages and Docs Deployment](https://github.com/Carroted/ulvs-graphics/actions/workflows/deploy.yml/badge.svg?branch=master)](https://github.com/Carroted/ulvs-graphics/actions/workflows/deploy.yml)
+[![Mirroring](https://github.com/Carroted/ulvs-graphics/actions/workflows/mirror.yml/badge.svg)](https://github.com/Carroted/ulvs-graphics/actions/workflows/mirror.yml)
+
 ## Concept Art
 
 ![Concept art image](https://raw.githubusercontent.com/Carroted/ulvs-graphics/master/assets/concept-art.png)

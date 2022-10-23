@@ -1,4 +1,3 @@
-
 /**
  * Base class for every component
  * @class
@@ -2826,6 +2825,31 @@ class SVGEngine {
     this.generateStyles();
 
     return this;
+  }
+  generateProgramSpec() {
+    // find the start nodes
+    const starts = this.components.filter(el => {
+      return el.component instanceof StartEventNode;
+    }).map(el => el.component);
+
+    var follow = (f) => {
+      let n = f[f.length - 1];
+      // TODO: split up flow if there are more than one plugs
+      if (!n.plugs[0].connected.length) return f;
+      // TODO: split up flow if there are more than one connector
+      f.push(n.plugs[0].connected[0].connectedTo.node);
+      return follow(f);
+    }
+
+    const flow = [];
+    starts.forEach(s => {
+      flow.push(follow([s])); // create the basic flow order
+    });
+    console.log(flow);
+
+    const basic = flow.slice();
+    flow.length = 0;
+    console.log(basic, flow);
   }
   get renderElement() {
     return this.element;
