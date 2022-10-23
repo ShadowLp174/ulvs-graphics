@@ -1014,6 +1014,7 @@ class Node extends Component {
     }
 
     this.id = uid();
+    this.nodeIdentifier = "nil";
     this.parentSVGEngine = svgEngine;
     this.embedNode = false;
 
@@ -1115,6 +1116,19 @@ class Node extends Component {
   }
   set renderContainer(_i) {
     // console.warn("Don't do that! [Node.renderContainer is readonly] trying to set to '" + i +"'");
+  }
+
+  /**
+   * @description Returns the identifier of the node that's also passed to the program
+   * spec.
+   *
+   * @return {string}  The node identifier string.
+   */
+  get identifier() {
+    return this.nodeIdentifier;
+  }
+  set identifier(_id) {
+    console.warn("Please use Node.setId() instead of the setter.");
   }
 
   /**
@@ -1258,6 +1272,17 @@ class Node extends Component {
   }
 
   /**
+   * @description Set the nodeIdentifier of this node. This id will be provided
+   * in the program spec on program generation for the compiler.
+   *
+   * @param  {string} id The new id of the Node.
+   * @return {void}
+   */
+  setId(id) {
+    this.nodeIdentifier = id;
+  }
+
+  /**
    * @description Change the class after initialization.
    *
    * @param  {NodeClass} c The new class
@@ -1394,6 +1419,7 @@ class ConditionNode extends Node {
   constructor(x, y, scale, svgEngine, type="") {
     super(x, y, scale, svgEngine);
 
+    this.setId("OpenVS-Base-Basic-Condition");
     this.setName("If");
     this.setClass(Node.Class.BASIC);
 
@@ -1425,6 +1451,7 @@ class IsMobileNode extends Node {
   constructor(x, y, scale, svgEngine, type="") {
     super(x, y, scale, svgEngine);
 
+    this.setId("OpenVS-Base-DInfo-Mobile");
     this.setName("Is Mobile");
     this.setClass(Node.Class.DEVICEINFO);
 
@@ -1438,6 +1465,7 @@ class ScreenSizeNode extends Node {
   constructor(x, y, scale, svgEngine, type="") {
     super(x, y, scale, svgEngine);
 
+    this.setId("OpenVS-Base-DInfo-SSize");
     this.setName("Screen Size");
     this.setClass(Node.Class.DEVICEINFO);
 
@@ -1451,6 +1479,7 @@ class AdditionNode extends Node {
   constructor(x, y, scale, svgEngine, type="", embed=null, embedNode=null) {
     super(x, y, scale, svgEngine);
 
+    this.setId("OpenVS-Base-Basic-Add");
     this.setName("Add (Math)");
     this.setClass(Node.Class.BASIC);
 
@@ -1468,6 +1497,7 @@ class GeneralAdditionNode extends Node {
   constructor(x, y, scale, svgEngine, type="", embed=null, embedNode=null) {
     super(x, y, scale, svgEngine);
 
+    this.setId("OpenVS-Base-Baisc-GAdd");
     this.setName("Add");
     this.setClass(Node.Class.BASIC);
 
@@ -1524,6 +1554,7 @@ class MultiplicationNode extends Node {
   constructor(x, y, scale, svgEngine, type="", embed=null, embedNode=null) {
     super(x, y, scale, svgEngine);
 
+    this.setId("OpenVS-Base-Basic-Multiply");
     this.setName("Multiply (Math)");
     this.setClass(Node.Class.BASIC);
 
@@ -1541,6 +1572,7 @@ class MathNode extends Node {
   constructor(x, y, scale, svgEngine, type="") {
     super(x, y, scale, svgEngine);
 
+    this.setId("OpenVS-Base-Basic-Math");
     this.setName("Add (Math)"); // default math operation
     this.setClass(Node.Class.BASIC);
 
@@ -1628,6 +1660,8 @@ class MathNode extends Node {
 class StartEventNode extends Node {
   constructor(x, y, scale, svgEngine, type="") {
     super(x, y, scale, svgEngine);
+
+    this.setId("OpenVS-Base-Event-Start");
 
     this.setName("Start");
     this.setClass(Node.Class.EVENT);
@@ -2833,6 +2867,7 @@ class SVGEngine {
     }).map(el => el.component);
 
     var follow = (f) => {
+      // TODO: Stop recursion on visual loop
       let n = f[f.length - 1];
       // TODO: split up flow if there are more than one plugs
       if (!n.plugs[0].connected.length) return f;
@@ -2849,7 +2884,31 @@ class SVGEngine {
 
     const basic = flow.slice();
     flow.length = 0;
-    console.log(basic, flow);
+    flow.push(...basic.map(flowBranch => { // convert the complex data to object spec
+      return flowBranch.map(fc => { // fc == flow component
+        const additional = [];
+        console.log(fc);
+        const is = fc.inputSockets.map(i => {
+          if (i.connected) {
+            const dataSource = this.components.filter(c => {
+              return c.id == i.con.plug.node.id
+            });
+            if (!dataSource) console.warn("This is not right.");
+            additional.push(dataSource);
+          }
+          // TODO: add data sources to main flow
+          return {
+            inputSource: (i.connected) ? i.con.plug.node.id : null,
+            type: i.type
+          }
+        });
+        return {
+          id: fc.identifier,
+          inputs: is
+        }
+      });
+    }));
+    console.log(flow);
   }
   get renderElement() {
     return this.element;
