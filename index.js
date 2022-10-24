@@ -2816,6 +2816,10 @@ class RasterBackground {
   }
 }
 
+/**
+ * @class
+ * @classdesc The object managing the graphics and components
+ */
 class SVGEngine {
   constructor() {
     this.element = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -2860,6 +2864,15 @@ class SVGEngine {
 
     return this;
   }
+
+  /**
+   * @description Calling this function will generate an object containing all the
+   * instructions a compiler should need. The data can be stringified for storage.
+   *  **Work in Progress**
+   *
+   * @return {object}  The program specification.
+   */
+   // TODO: document program specification structure
   generateProgramSpec() {
     // find the start nodes
     const starts = this.components.filter(el => {
@@ -2899,6 +2912,7 @@ class SVGEngine {
           // TODO: add data sources to main flow
           return {
             inputSource: (i.connected) ? i.con.plug.node.id : null,
+            required: i.required, // TODO: implement
             type: i.type
           }
         });
