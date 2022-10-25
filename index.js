@@ -2872,8 +2872,8 @@ class SVGEngine {
    *
    * @return {object}  The program specification.
    */
-   // TODO: document program specification structure
   generateProgramSpec() {
+    // TODO: document program specification structure
     // find the start nodes
     const starts = this.components.filter(el => {
       return el.component instanceof StartEventNode;
@@ -2893,36 +2893,58 @@ class SVGEngine {
     starts.forEach(s => {
       flow.push(follow([s])); // create the basic flow order
     });
-    console.log(flow);
+
+    const additional = [];
+    var mapComponent = (fc) => {
+      if (!fc.inputSockets) fc.inputSockets = [];
+      const is = fc.inputSockets.map(i => {
+        if (i.connected) {
+          const dataSource = this.components.filter(c => {
+            return c.component.id == i.con.plug.node.id
+          })[0].component;
+          if (!dataSource) console.warn("This is not right.");
+          if (additional.findIndex(e => e.id == dataSource.id) == -1) additional.push(dataSource);
+        }
+        // TODO: add data sources to main flow
+        return {
+          inputSource: (i.connected) ? i.con.plug.node.id : null,
+          required: i.required, // TODO: implement
+          type: i.type
+        }
+      });
+      if (!fc.outputPlugs) fc.outputPlugs = [];
+      const os = fc.outputPlugs.map(o => {
+        return {
+          type: o.type,
+        }
+      });
+      return {
+        is, os
+      }
+    }
 
     const basic = flow.slice();
     flow.length = 0;
     flow.push(...basic.map(flowBranch => { // convert the complex data to object spec
       return flowBranch.map(fc => { // fc == flow component
-        const additional = [];
-        console.log(fc);
-        const is = fc.inputSockets.map(i => {
-          if (i.connected) {
-            const dataSource = this.components.filter(c => {
-              return c.id == i.con.plug.node.id
-            });
-            if (!dataSource) console.warn("This is not right.");
-            additional.push(dataSource);
-          }
-          // TODO: add data sources to main flow
-          return {
-            inputSource: (i.connected) ? i.con.plug.node.id : null,
-            required: i.required, // TODO: implement
-            type: i.type
-          }
-        });
+        const d = mapComponent(fc);
         return {
           id: fc.identifier,
-          inputs: is
+          inputs: d.is,
+          outputs: d.os,
+          uuid: fc.id
         }
       });
     }));
-    console.log(flow);
+    const a = additional.map(el => {
+      const d = mapComponent(el);
+      d.uuid = el.id;
+      return d;
+    });
+    return {
+      flow,
+      additional: a
+    }
   }
   get renderElement() {
     return this.element;
