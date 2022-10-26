@@ -18,7 +18,7 @@ There are two index files. One PHP and one HTML file. The PHP file is for Apache
 ![Second concept art image](https://raw.githubusercontent.com/Carroted/ulvs-graphics/master/assets/concept-art1.png)
 ![Third concept art image](https://raw.githubusercontent.com/Carroted/ulvs-graphics/master/assets/concept-art2.png)
 ![Fourth concept art image](https://raw.githubusercontent.com/Carroted/ulvs-graphics/master/assets/concept-art3.png)
-Concept arts by Alex_Sour
+Concept arts by asour
 
 # Documentation
 
