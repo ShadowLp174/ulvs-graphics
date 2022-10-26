@@ -1,0 +1,78 @@
+{
+	"flow":[
+		[
+			{
+				"id":"OpenVS-Base-Event-Start",
+				"inputs":[
+
+				],
+				"outputs":[
+
+				],
+				"uuid":"l9q5geifz1f8x1rzkyr"
+			},
+			{
+				"id":"OpenVS-Base-Basic-Condition",
+				"inputs":[
+					{
+						"inputSource":"l9q5gei919ynygo5q0h",
+						"type":"bool"
+					}
+				],
+				"outputs":[
+
+				],
+				"uuid":"l9q5geht1c0q8gl0qve"
+			},
+			{
+				"id":"OVS-Branch",
+				"branches":[
+					[
+						{
+							"id":"OpenVS-Base-Basic-Condition",
+							"inputs":[
+								{
+									"inputSource":null,
+									"type":"bool"
+								}
+							],
+							"outputs":[
+
+							],
+							"uuid":"l9q5gei70ld8k38nkc9n"
+						}
+					],
+					[
+						{
+							"id":"OpenVS-Base-Basic-Condition",
+							"inputs":[
+								{
+									"inputSource":null,
+									"type":"bool"
+								}
+							],
+							"outputs":[
+
+							],
+							"uuid":"l9q5gei44veamoyrzrv"
+						}
+					]
+				]
+			}
+		]
+	],
+	"additional":[
+		{
+			"is":[
+
+			],
+			"os":[
+				{
+					"type":"bool"
+				}
+			],
+			"uuid":"l9q5gei919ynygo5q0h",
+			"id":"OpenVS-Base-DInfo-Mobile"
+		}
+	]
+}

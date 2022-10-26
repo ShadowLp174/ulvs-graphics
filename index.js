@@ -2941,20 +2941,32 @@ class SVGEngine {
     flow.length = 0;
     flow.push(...basic.map(flowBranch => { // convert the complex data to object spec
       return flowBranch.map(fc => { // fc == flow component
-        console.log(fc);
-        if (fc.id == "OVS-Branch") return fc;
-        const d = mapComponent(fc);
-        return {
-          id: fc.identifier,
-          inputs: d.is,
-          outputs: d.os,
-          uuid: fc.id
+        var m = (component) => {
+          const d = mapComponent(component);
+          return {
+            id: component.identifier,
+            inputs: d.is,
+            outputs: d.os,
+            uuid: component.id
+          }
         }
+        if (fc.id == "OVS-Branch") {
+          return {
+            id: fc.id,
+            branches: fc.branches.map(branch => {
+              return branch.map(c => {
+                return m(c);
+              });
+            })
+          };
+        }
+        return m(fc);
       });
     }));
     const a = additional.map(el => {
       const d = mapComponent(el);
       d.uuid = el.id;
+      d.id = el.identifier;
       return d;
     });
     return {
