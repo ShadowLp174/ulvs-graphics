@@ -2882,11 +2882,25 @@ class SVGEngine {
     var follow = (f) => {
       // TODO: Stop recursion on visual loop
       let n = f[f.length - 1];
-      // TODO: split up flow if there are more than one plugs
-      if (!n.plugs[0].connected.length) return f;
-      // TODO: split up flow if there are more than one connector
-      f.push(n.plugs[0].connected[0].connectedTo.node);
-      return follow(f);
+
+      // create new branch for every **connected** plug
+      const sub = []; // new subBranches
+      if (n.plugs.filter(p => p.connected.length != 0).length == 0) return f;
+
+      if (n.plugs.filter(p => p.connected.length != 0).length == 1) {
+        f.push(n.plugs[0].connected[0].connectedTo.node);
+        return follow(f);
+      }
+
+      n.plugs.filter(p => p.connected.length > 0).forEach(plug => {
+        // TODO: Implement branch split on multiple connectors
+        sub.push(follow([plug.connected[0].connectedTo.node]));
+      });
+      f.push({
+        id: "OVS-Branch",
+        branches: sub
+      });
+      return f;
     }
 
     const flow = [];
@@ -2927,6 +2941,8 @@ class SVGEngine {
     flow.length = 0;
     flow.push(...basic.map(flowBranch => { // convert the complex data to object spec
       return flowBranch.map(fc => { // fc == flow component
+        console.log(fc);
+        if (fc.id == "OVS-Branch") return fc;
         const d = mapComponent(fc);
         return {
           id: fc.identifier,
@@ -3160,6 +3176,9 @@ engine.addComponent(condition);
 
 const condition1 = new ConditionNode(704, 125, 1, engine, "bezier");
 engine.addComponent(condition1);
+
+const condition2 = new ConditionNode(375, 200, 1, engine, "bezier");
+engine.addComponent(condition2);
 
 const device = new IsMobileNode(55, 224, 1, engine, "bezier");
 engine.addComponent(device);
