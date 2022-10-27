@@ -24,6 +24,20 @@ Concept arts by asour
 
 The documentation can be found on the github pages [here](https://carroted.github.io/ulvs-graphics/docs). It is still in development and will be improved over time.
 
+# Compiling
+
+Although the main focus is on the graphics and interactivity,
+there is a basic js compiler ready. It is still in heavy developement.
+
+To compile a visual script, you have to open the dev tools,
+and run `JSON.stringify(engine.generateProgramSpec());`.
+Copy the resulting string and put it inside `test-spec.json`.
+As the compiler currently uses node, you'll have to have NodeJS
+installed. Run `node test-compiler.js` and the resulting JS code
+should pop up inside a file called `compiled.js`.
+
+*Note: The compiler is just a side project until the graphics are ready, meaning it might not work. An API and documentation for it are part of the final ULVS*
+
 ## TODOs
 
 *incomplete*

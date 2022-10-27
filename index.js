@@ -2919,11 +2919,13 @@ class SVGEngine {
           if (!dataSource) console.warn("This is not right.");
           if (additional.findIndex(e => e.id == dataSource.id) == -1) additional.push(dataSource);
         }
+        const pid = (i.connected) ? i.con.plug.node.outputPlugs.findIndex(p => p == i.con.plug) : null;
         // TODO: add data sources to main flow
         return {
           inputSource: (i.connected) ? i.con.plug.node.id : null,
           required: i.required, // TODO: implement
-          type: i.type
+          type: i.type,
+          portId: pid
         }
       });
       if (!fc.outputPlugs) fc.outputPlugs = [];
