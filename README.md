@@ -43,5 +43,5 @@ should pop up inside a file called `compiled.js`.
 *incomplete*
 
 - Drawable comments
-- "Code Blocks" Multiple Nodes snapling together
+- "Code Blocks" Multiple Nodes snapping together
 - Panning right click; Selecting left click

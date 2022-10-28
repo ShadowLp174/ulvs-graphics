@@ -23,11 +23,16 @@ const nodeMap = {
     }`,
     output: ["OVSBIsMobile()"]
   },
+  "OpenVS-Base-Console-Log": {
+    script: "console.log($in);$further",
+    input: [ "in" ],
+    branches: false
+  },
   "OpenVS-Base-DInfo-SSize": {
     function: true,
     script: `function OVSBScreenHeight() {return window.screen.height;}
     function OVSBScreenWidth() {return window.screen.width;}`,
-    output: ["OVSBScreenHeight()", "OVSBScreenWidth()"]
+    output: ["OVSBScreenWidth()", "OVSBScreenHeight()"]
   }
 }
 
@@ -80,16 +85,16 @@ functions.forEach(f => {
 script += "\n$further";
 var compile = (s, sns) => {
   sns.forEach((snippet, i) => {
-    if (i - 1 >= sns.length) return s = s.replace("$further", "");
-    console.log(snippet);
+    console.log(snippet, script);
     const last = (i == sns.length - 1);
     if (last && snippet.id != "OVS-Branch") {
-      if (snippet.branches != true) return;
-      for (let j = 0; j < snippet.branchCount; j++) {
-        snippet.script = snippet.script.replace("$nl" + snippet.nestedLevelId + "branch" + j, "");
+      if (snippet.branches == true) {
+        for (let j = 0; j < snippet.branchCount; j++) {
+          snippet.script = snippet.script.replace("$nl" + snippet.nestedLevelId + "branch" + j, "");
+        }
       }
     }
-    if (snippet.id != "OVS-Branch") return s = s.replace("$further", snippet.script);
+    if (snippet.id != "OVS-Branch") return s = s.replace(/\$further/, snippet.script);
 
     snippet.branches.forEach((b, j) => { // b == branch
       s = s.replace("$nl" + snippet.nestedLevelId + "branch" + j, compile("$further", b))
@@ -97,7 +102,7 @@ var compile = (s, sns) => {
   });
   return s;
 }
-script = compile(script, snippets).replace("$further", "");
+script = compile(script, snippets).replace(/\$further/g, "");
 
 console.log("\n\ncompiled", script);
 fs.writeFileSync(__dirname + "\\compiled.js", script);

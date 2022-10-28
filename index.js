@@ -902,7 +902,7 @@ class InputSocketComponent extends Component {
 
     let typeMetrics = Text.measureText(InputSocketComponent.TypeLabel[this.type], (9 * this.scale) + "px");
     this.typeMetrics = typeMetrics;
-    this.typeLabel = new Text((this.offset + 21 + metrics.width)*this.scale, (2) * this.scale, InputSocketComponent.TypeLabel[this.type], this.scale, Text.Anchor.START, Text.VerticalAnchor.TOP);
+    this.typeLabel = new Text((this.offset + 23 + metrics.width)*this.scale, (2) * this.scale, InputSocketComponent.TypeLabel[this.type], this.scale, Text.Anchor.START, Text.VerticalAnchor.TOP);
     this.typeLabel.container.style.fontSize = (9 * this.scale) + "px";
     this.typeLabel.setColor(this.color);
     this.elements.push({ element: this.typeLabel, render: (el) => el.createSVGElement() });
@@ -976,7 +976,8 @@ class Node extends Component {
   static ClassColor = {
     basic: "#8a5794",
     event: "#779457",
-    deviceinfo: "#946148"
+    deviceinfo: "#946148",
+    console: "#588068"
   };
   /**
    * @enum
@@ -986,12 +987,14 @@ class Node extends Component {
   static Class = {
     BASIC: "basic",
     EVENT: "event",
-    DEVICEINFO: "deviceinfo"
+    DEVICEINFO: "deviceinfo",
+    CONSOLE: "console"
   }
   static ClassName = {
     basic: "Basic",
     event: "Event",
-    deviceinfo: "Device Info"
+    deviceinfo: "Device Info",
+    console: "Console"
   }
 
   /**
@@ -1447,6 +1450,23 @@ class ConditionNode extends Node {
     this.plugs[1].setOpacity(1);
   }
 }
+// TODO: Group nodes inside their classes
+class ConsoleLogNode extends Node {
+  constructor(x, y, scale, svgEngine, type="") {
+    super(x, y, scale, svgEngine);
+
+    this.setId("OpenVS-Base-Console-Log");
+    this.setName("Log");
+    this.setClass(Node.Class.CONSOLE);
+
+    this.addSocket();
+    this.addPlug("", type);
+
+    this.addInputSocket(InputSocketComponent.Type.ANY, "Object");
+
+    return this;
+  }
+}
 class IsMobileNode extends Node {
   constructor(x, y, scale, svgEngine, type="") {
     super(x, y, scale, svgEngine);
@@ -1454,7 +1474,6 @@ class IsMobileNode extends Node {
     this.setId("OpenVS-Base-DInfo-Mobile");
     this.setName("Is Mobile");
     this.setClass(Node.Class.DEVICEINFO);
-
 
     this.addOutputPlug(OutputPlugComponent.Type.BOOLEAN, "Is Mobile", type);
 
@@ -3211,6 +3230,9 @@ engine.addComponent(math);
 
 const add = new GeneralAdditionNode(100, 250, 1, engine, "bezier");
 engine.addComponent(add);
+
+const log = new ConsoleLogNode(100, 100, 1, engine, "bezier");
+engine.addComponent(log);
 
 document.body.style.overflow = "hidden";
 

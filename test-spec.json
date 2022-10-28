@@ -9,13 +9,13 @@
 				"outputs":[
 
 				],
-				"uuid":"l9rdt8ex5yyv125q203"
+				"uuid":"l9t3tprhbx925nxft7"
 			},
 			{
 				"id":"OpenVS-Base-Basic-Condition",
 				"inputs":[
 					{
-						"inputSource":"l9rdt8epk5dpngtz528",
+						"inputSource":"l9t3tprcqlgi26rb0am",
 						"type":"bool",
 						"portId":0
 					}
@@ -23,7 +23,7 @@
 				"outputs":[
 
 				],
-				"uuid":"l9rdt8e8yqxpcnzbek"
+				"uuid":"l9t3tpqzd0m07isr7b"
 			},
 			{
 				"id":"OVS-Branch",
@@ -41,23 +41,23 @@
 							"outputs":[
 
 							],
-							"uuid":"l9rdt8elyqlyk52szj"
+							"uuid":"l9t3tpr8wdhutrjcdkj"
 						}
 					],
 					[
 						{
-							"id":"OpenVS-Base-Basic-Condition",
+							"id":"OpenVS-Base-Console-Log",
 							"inputs":[
 								{
-									"inputSource":null,
-									"type":"bool",
-									"portId":null
+									"inputSource":"l9t3tprgblb0rijstr",
+									"type":"any",
+									"portId":0
 								}
 							],
 							"outputs":[
 
 							],
-							"uuid":"l9rdt8ei6qcs7cujkhx"
+							"uuid":"l9t3tprnywh3s07lrqh"
 						}
 					]
 				]
@@ -74,8 +74,23 @@
 					"type":"bool"
 				}
 			],
-			"uuid":"l9rdt8epk5dpngtz528",
+			"uuid":"l9t3tprcqlgi26rb0am",
 			"id":"OpenVS-Base-DInfo-Mobile"
+		},
+		{
+			"is":[
+
+			],
+			"os":[
+				{
+					"type":"int"
+				},
+				{
+					"type":"int"
+				}
+			],
+			"uuid":"l9t3tprgblb0rijstr",
+			"id":"OpenVS-Base-DInfo-SSize"
 		}
 	]
 }
