@@ -755,20 +755,23 @@ class InputSocketComponent extends Component {
     connect: "#ffffff",
     num: "#427fbd",
     int: "#427fbd",
-    any: "#ffffff"
+    any: "#ffffff",
+    str: "#779457"
   }
   static StrokeMapping = {
     bool: { stroke: "transparent", width: 1 },
     connect: { stroke: "transparent", width: 1 },
     int: { stroke: "transparent", width: 1 },
     num: { stroke: "transparent", width: 1 },
-    any: { stroke: "#ffffff", width: 1 }
+    any: { stroke: "#ffffff", width: 1 },
+    str: { stroke: "", width: 1 }
   }
   static TypeLabel = {
     bool: "BOOL",
     num: "NUM",
     int: "INT",
-    any: "ANY"
+    any: "ANY",
+    str: "STR"
   }
   /**
    * @description Initiates a new inputSocketComponent
@@ -781,16 +784,16 @@ class InputSocketComponent extends Component {
    * @param  {String} type          type of the socket, see InputSocketComponent.Type for types
    * @param  {Node} node            parent node object, the socket is attached to
    * @param  {String} label         the label of the socket
-   * @param  {Boolean} checkbox=true Wether or not to include a checkbox (only for boolean sockets)
+   * @param  {Boolean} userInput=true Wether or not to include some kind of input component for the user to enter a value
    */
-  constructor(x, y, width, height, scale, type, node, label, checkbox=true) {
+  constructor(x, y, width, height, scale, type, node, label, userInput=true) {
     super(x, y, width, height, scale);
 
     this.type = type; // TODO: the type of the socket
     this.node = node; // the node the socket is attached to
     this.label = label;
     this.id = uid();
-    this.checkbox = (type === InputSocketComponent.Type.BOOLEAN) ? checkbox : false; // TODO: add an input for nums/strings
+    this.uInput = (InputSocketComponent.Type.ANY !== type) ? userInput : false;
 
     this.container.setAttribute("OpenVS-Node-Id", this.node.id);
 
@@ -803,6 +806,8 @@ class InputSocketComponent extends Component {
 
     this.con; // the connector
     this.conCallback = null, this.deconCallback = null;;
+    this.dataConstant = true;
+    this.storedData = null; // initiated on initType
     this.phantomTypes = []; // only important if type ANY; see Connector.typesCompatible
 
     if (type !== InputSocketComponent.Type.CONNECTOR) {
@@ -851,9 +856,12 @@ class InputSocketComponent extends Component {
    */
   connect(connector) {
     if (this.conCallback) this.conCallback(connector);
-    if (!this.checkbox) return;
+    if (!this.uInput) return;
     if (!this.box) return;
-    this.node.reset();
+    if (this.type == InputSocketComponent.Type.BOOLEAN) {
+      this.node.reset();
+    }
+    this.dataConstant = false;
     this.box.container.style.display = "none";
     this.offset = 0;
     this.relocateLabels();
@@ -866,11 +874,14 @@ class InputSocketComponent extends Component {
    */
   disconnect(connector) {
     if (this.deconCallback) this.deconCallback(connector);
-    if (!this.checkbox) return;
+    if (!this.uInput) return;
     if (!this.box) return;
-    if (this.node.state) this.node.simulate(this.node.state);
+    if (this.type == InputSocketComponent.Type.BOOLEAN) {
+      if (this.node.state) this.node.simulate(this.node.state);
+    }
+    this.dataConstant = true;
     this.box.container.style.display = "block";
-    this.offset = 23;
+    this.offset = this.box.tw + 4;
     this.relocateLabels();
   }
   relocateLabels() {
@@ -885,13 +896,31 @@ class InputSocketComponent extends Component {
       y: (typeMetrics.height + 2) * this.scale
     });
   }
+  getUserInputComponent() {
+    switch(this.type) {
+      case InputSocketComponent.Type.STRING:
+      case InputSocketComponent.Type.NUMBER:
+      case InputSocketComponent.Type.INT:
+        return new SVGInput(21 * this.scale, 0, 50, 1, (data) => {
+          this.storedData = data;
+        });
+      case InputSocketComponent.Type.BOOLEAN:
+        return new SVGCheckbox(21 * this.scale, 0, this.scale, false, (state) => {
+          this.storedData = state;
+          if (this.node.simulate) this.node.simulate(state); // change the opacity of the plugs
+        });
+      default:
+        console.warn("Something went wrong!", this);
+        return null;
+    }
+  }
   initType() {
-    this.offset = (this.checkbox) ? 23 : 0;
-    if (this.checkbox) {
-      this.box = new SVGCheckbox(21 * this.scale, 0, this.scale, false, (state) => {
-        if (this.node.simulate) this.node.simulate(state); // change the opacity of the plugs
-      });
+    this.offset = 0;
+    if (this.uInput) {
+      this.dataConstant = true;
+      this.box = this.getUserInputComponent();
       this.elements.push({ element: this.box });
+      this.offset = this.box.tw + 4;
     }
 
     let metrics = Text.measureText(this.label);
@@ -1417,6 +1446,31 @@ class Node extends Component {
     }
     return plug;
   }
+
+
+  /**
+   * @description Add a user input to the body of the node. The user can enter
+   * values that will be used in the compiling process as constants.
+   *
+   * @param  {InputSocketComponentType} type     The data type of the input.
+   * @param  {string} label="" The label of thé input that will be displayed next to it.
+   * @return {object}          The input object depending on the data type.
+   */
+  addUserInput(type, label="") {
+    const object = new ({
+      [InputSocketComponent.Type.STRING]: SVGInput
+    })[type]((10 * this.scale), (28 * this.inputSockets.length) * this.scale, 64*this.scale, 1, label);
+    object.dataConstant = true; // mark for compiler
+    const currLength = Math.max(this.inputSockets.length, this.outputPlugs.length);
+    this.inputSockets.push(object);
+
+    if (this.inputSockets.length > currLength) {
+      let diff = this.inputSockets.length - currLength;
+      this.bgRect.setHeight(this.bgRect.height + (28 * diff) * this.scale);
+    }
+
+    return object;
+  }
 }
 class ConditionNode extends Node {
   constructor(x, y, scale, svgEngine, type="") {
@@ -1450,6 +1504,20 @@ class ConditionNode extends Node {
     this.plugs[1].setOpacity(1);
   }
 }
+class VariableWriteNode extends Node {
+  constructor(x, y, scale, svgEngine, type="") {
+    super(x, y, scale, svgEngine);
+
+    this.setId("OpenVS-Base-Variable-Read");
+    this.setName("Write Variable");
+    this.setClass(Node.Class.BASIC);
+
+    this.addSocket();
+    this.addPlug("", this.type);
+
+    this.addInputSocket(InputSocketComponent.Type.STRING, "Value");
+  }
+}
 // TODO: Group nodes inside their classes
 class ConsoleLogNode extends Node {
   constructor(x, y, scale, svgEngine, type="") {
@@ -1466,6 +1534,24 @@ class ConsoleLogNode extends Node {
 
     return this;
   }
+}
+class NodeClass {
+  constructor() {
+    this.nodes = [];
+
+    return this;
+  }
+
+  addNode(id, name, c, custom=()=>{}) {
+    nodes.push({
+      id: id,
+      name: name,
+      class: c,
+      custom: custom
+    });
+  }
+
+  // TODO: Finish
 }
 class IsMobileNode extends Node {
   constructor(x, y, scale, svgEngine, type="") {
@@ -2415,6 +2501,41 @@ class Rectangle {
     this.updateAttributes();
   }
 }
+class SVGInput extends Component {
+  constructor(x, y, width, scale, cb=()=>{}) {
+    super(x, y, width, 18, scale);
+
+    this.htmlContainer = document.createElementNS("http://www.w3.org/2000/svg", "foreignObject");
+    this.htmlContainer.setAttribute("width", this.tw);
+    this.htmlContainer.setAttribute("height", this.th);
+    this.elements.push({ element: this.htmlContainer, render: (el) => el });
+
+    this.input = document.createElement("input");
+    this.input.classList.add("openvs_graphics_input");
+    this.htmlContainer.appendChild(this.input);
+
+    this.storedData = "";
+    this.cb = cb;
+
+    var lastValue = "";
+    var reset = false;
+    this.input.onblur = () => {
+      if (reset) {reset = false; return this.input.value = lastValue;}
+      this.storedData = this.input.value;
+      this.cb(this.input.value);
+    }
+    this.input.onfocus = () => {
+      lastValue = this.input.value;
+    }
+    this.input.onkeyup = (e) => {
+      if (!(e.code === "Enter" || e.code === "Escape")) return;
+      if (e.code === "Escape") reset = true;
+      this.input.blur();
+    }
+
+    return this;
+  }
+}
 class SVGSelect extends Component {
   constructor(x, y, width, scale, cb=null, ccb=null) {
     super(x, y, width, 18, scale);
@@ -2944,6 +3065,8 @@ class SVGEngine {
           inputSource: (i.connected) ? i.con.plug.node.id : null,
           required: i.required, // TODO: implement
           type: i.type,
+          dataConstant: i.dataConstant,
+          dataValue: i.storedData,
           portId: pid
         }
       });
@@ -3210,9 +3333,6 @@ engine.addComponent(condition);
 const condition1 = new ConditionNode(704, 125, 1, engine, "bezier");
 engine.addComponent(condition1);
 
-const condition2 = new ConditionNode(375, 200, 1, engine, "bezier");
-engine.addComponent(condition2);
-
 const device = new IsMobileNode(55, 224, 1, engine, "bezier");
 engine.addComponent(device);
 
@@ -3233,6 +3353,9 @@ engine.addComponent(add);
 
 const log = new ConsoleLogNode(100, 100, 1, engine, "bezier");
 engine.addComponent(log);
+
+const read = new VariableWriteNode(200, 400, 1, engine, "bezier");
+engine.addComponent(read);
 
 document.body.style.overflow = "hidden";
 

@@ -16,3 +16,32 @@
   left: 3px;
   color: #6e6e6e;
 }
+
+.openvs_graphics_input {
+  width: calc(100% - 6px);
+  height: calc(100% - 6px);
+
+  border: none;
+  border-radius: 3px;
+
+  margin: 0px;
+  padding: 2px;
+
+  background-color: #121212;
+  border: 1px solid #0f0f0f;
+
+  box-shadow: none;
+
+  color: white;
+
+  transition: 0.1s;
+}
+.openvs_graphics_input:focus-visible {
+  /*outline-offset: -1px;
+  outline-color: white;
+  outline-style: solid;
+  outline-width: 1px;*/
+  outline: none;
+
+  border-color: white;
+}
