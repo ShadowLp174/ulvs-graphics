@@ -719,14 +719,13 @@ class OutputPlugComponent extends Component {
 
 /**
  * The type used for InputSocketComponents
- * @typedef {(
- *  InputSocketComponent.Type.BOOLEAN |
- *  InputSocketComponent.Type.INTEGER |
- *  InputSocketComponent.Type.FLOAT |
- *  InputSocketComponent.Type.STRING |
- *  InputSocketComponent.Type.CONNECTOR |
- *  InputSocketComponent.Type.ANY
- *  )} InputSocketComponentType
+ * @typedef {string} InputSocketComponentType
+ * @property {string} BOOLEAN
+ * @property {string} INTEGER
+ * @property {string} FLOAT
+ * @property {string} STRING
+ * @property {string} CONNECTOR
+ * @property {string} ANY
  */
 /**
  * Creates a new InputSocketComponent
@@ -764,7 +763,7 @@ class InputSocketComponent extends Component {
     int: { stroke: "transparent", width: 1 },
     num: { stroke: "transparent", width: 1 },
     any: { stroke: "#ffffff", width: 1 },
-    str: { stroke: "", width: 1 }
+    str: { stroke: "transparent", width: 1 }
   }
   static TypeLabel = {
     bool: "BOOL",
