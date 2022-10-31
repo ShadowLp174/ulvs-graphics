@@ -9,88 +9,51 @@
 				"outputs":[
 
 				],
-				"uuid":"l9t3tprhbx925nxft7"
+				"uuid":"l9v5lzeenbzvt63wrjb"
 			},
 			{
-				"id":"OpenVS-Base-Basic-Condition",
+				"id":"OpenVS-Base-Console-Log",
 				"inputs":[
 					{
-						"inputSource":"l9t3tprcqlgi26rb0am",
-						"type":"bool",
+						"inputSource":"l9v5lzehfqxqqz3ln6f",
+						"type":"any",
+						"dataConstant":true,
+						"dataValue":null,
 						"portId":0
 					}
 				],
 				"outputs":[
 
 				],
-				"uuid":"l9t3tpqzd0m07isr7b"
-			},
-			{
-				"id":"OVS-Branch",
-				"branches":[
-					[
-						{
-							"id":"OpenVS-Base-Basic-Condition",
-							"inputs":[
-								{
-									"inputSource":null,
-									"type":"bool",
-									"portId":null
-								}
-							],
-							"outputs":[
-
-							],
-							"uuid":"l9t3tpr8wdhutrjcdkj"
-						}
-					],
-					[
-						{
-							"id":"OpenVS-Base-Console-Log",
-							"inputs":[
-								{
-									"inputSource":"l9t3tprgblb0rijstr",
-									"type":"any",
-									"portId":0
-								}
-							],
-							"outputs":[
-
-							],
-							"uuid":"l9t3tprnywh3s07lrqh"
-						}
-					]
-				]
+				"uuid":"l9v5lzetwec5j4xv1p"
 			}
 		]
 	],
 	"additional":[
 		{
 			"is":[
-
-			],
-			"os":[
 				{
-					"type":"bool"
-				}
-			],
-			"uuid":"l9t3tprcqlgi26rb0am",
-			"id":"OpenVS-Base-DInfo-Mobile"
-		},
-		{
-			"is":[
-
-			],
-			"os":[
-				{
-					"type":"int"
+					"inputSource":null,
+					"type":"num",
+					"dataConstant":true,
+					"dataValue":"20",
+					"portId":null
 				},
 				{
-					"type":"int"
+					"inputSource":null,
+					"type":"num",
+					"dataConstant":true,
+					"dataValue":"22",
+					"portId":null
 				}
 			],
-			"uuid":"l9t3tprgblb0rijstr",
-			"id":"OpenVS-Base-DInfo-SSize"
+			"os":[
+				{
+					"type":"num"
+				}
+			],
+			"uuid":"l9v5lzehfqxqqz3ln6f",
+			"id":"OpenVS-Base-Basic-Math"
 		}
 	]
 }

@@ -1,10 +1,10 @@
 // TODO: convert node script to worker script
-const spec = require("./test-spec.json");
+const specification = require("./test-spec.json");
 const fs = require("fs");
 
 // BAD; WILL BE REWRITTEN LATER
 
-console.log(spec);
+console.log(specification);
 
 const nodeMap = {
   "OpenVS-Base-Event-Start": {
@@ -33,76 +33,100 @@ const nodeMap = {
     script: `function OVSBScreenHeight() {return window.screen.height;}
     function OVSBScreenWidth() {return window.screen.width;}`,
     output: ["OVSBScreenWidth()", "OVSBScreenHeight()"]
+  },
+  "OpenVS-Base-Variable-Write": {
+    init: "var $in1 = $in2",
+    script: "$in1 = $in2"
+  },
+  "OpenVS-Base-Basic-Add": {
+    script: "var additionResult = $in1 + $in2",
+    input: ["in1", "in2"],
+    output: ["additionResult"]
   }
 }
 
-var snippets = [];
-var functions = [];
-spec.flow.forEach(f => {
-  var processFlow = (flow, sns, nLevel=0) => { // nLevel == how deep is this iteration nested
-    flow.forEach(component => {
-      if (component.id == "OVS-Branch") {
-        component.branches = component.branches.map(b => {
-          return processFlow(b,[], (nLevel + 1));
-        });
-        component.nestedLevelId = nLevel;
-        return sns.push(component);
-      };
-      let snippet = JSON.parse(JSON.stringify(nodeMap[component.id]));
-      snippet.nestedLevelId = nLevel;
-      if (snippet.branches) {
-        snippet.script = snippet.script.replace(/\$branch/g, "$nl" + nLevel + "branch");
-      }
-      if (component.inputs) {
-        if (component.inputs.length > 0) {
-          const is = [];
-          component.inputs.forEach(input => {
-            if (!input.inputSource) return;
-            let source = nodeMap[spec.additional.find(a => a.uuid == input.inputSource).id];
-            if (!source) return console.warn("Somethings weird lol");
-            if (source.function) functions.push(source);
-            is.push(source.output[input.portId])
+const compileSpec = (spec) => {
+  var snippets = [];
+  var functions = [];
+  spec.flow.forEach(f => {
+    var processFlow = (flow, sns, nLevel=0) => { // nLevel == how deep is this iteration nested
+      flow.forEach(component => {
+        if (component.id == "OVS-Branch") {
+          component.branches = component.branches.map(b => {
+            return processFlow(b,[], (nLevel + 1));
           });
-          console.log("sni", snippet)
-          snippet.input.forEach((i, index) => {
-            snippet.script = snippet.script.replace("$" + i, is[index]);
-          });
+          component.nestedLevelId = nLevel;
+          return sns.push(component);
+        };
+        let snippet = JSON.parse(JSON.stringify(nodeMap[component.id]));
+        snippet.nestedLevelId = nLevel;
+        if (snippet.branches) {
+          snippet.script = snippet.script.replace(/\$branch/g, "$nl" + nLevel + "branch");
         }
-      }
-      sns.push(snippet);
-    });
-    return sns;
-  }
-  snippets = processFlow(f,[]);
-});
-
-console.log("snippets", snippets, functions);
-
-var script = "";
-functions.forEach(f => {
-  script += f.script;
-});
-script += "\n$further";
-var compile = (s, sns) => {
-  sns.forEach((snippet, i) => {
-    console.log(snippet, script);
-    const last = (i == sns.length - 1);
-    if (last && snippet.id != "OVS-Branch") {
-      if (snippet.branches == true) {
-        for (let j = 0; j < snippet.branchCount; j++) {
-          snippet.script = snippet.script.replace("$nl" + snippet.nestedLevelId + "branch" + j, "");
+        if (component.inputs) {
+          if (component.inputs.length > 0) {
+            const is = [];
+            component.inputs.forEach(input => {
+              if (!input.inputSource) {
+                if (!input.dataConstant) return;
+                is.push(input.dataValue);
+                return;
+              }
+              let source = nodeMap[spec.additional.find(a => a.uuid == input.inputSource).id];
+              if (!source) return console.warn("Somethings weird lol");
+              if (source.function) {
+                functions.push(source);
+              } else {
+                var traceSource = (elem) => {
+                  // TODO: finish
+                }
+                // TODO: Trace additional sources; math add for example
+              }
+              is.push(source.output[input.portId])
+            });
+            console.log("sni", snippet)
+            snippet.input.forEach((i, index) => {
+              snippet.script = snippet.script.replace("$" + i, is[index]);
+            });
+          }
         }
-      }
+        sns.push(snippet);
+      });
+      return sns;
     }
-    if (snippet.id != "OVS-Branch") return s = s.replace(/\$further/, snippet.script);
-
-    snippet.branches.forEach((b, j) => { // b == branch
-      s = s.replace("$nl" + snippet.nestedLevelId + "branch" + j, compile("$further", b))
-    });
+    snippets = processFlow(f,[]);
   });
-  return s;
+
+  console.log("snippets", snippets, functions);
+
+  var script = "";
+  functions.forEach(f => {
+    script += f.script;
+  });
+  script += "\n$further";
+  var compile = (s, sns) => {
+    sns.forEach((snippet, i) => {
+      console.log(snippet, script);
+      const last = (i == sns.length - 1);
+      if (last && snippet.id != "OVS-Branch") {
+        if (snippet.branches == true) {
+          for (let j = 0; j < snippet.branchCount; j++) {
+            snippet.script = snippet.script.replace("$nl" + snippet.nestedLevelId + "branch" + j, "");
+          }
+        }
+      }
+      if (snippet.id != "OVS-Branch") return s = s.replace(/\$further/, snippet.script);
+
+      snippet.branches.forEach((b, j) => { // b == branch
+        s = s.replace("$nl" + snippet.nestedLevelId + "branch" + j, compile("$further", b))
+      });
+    });
+    return s;
+  }
+  script = compile(script, snippets).replace(/\$further/g, "");
+  return script;
 }
-script = compile(script, snippets).replace(/\$further/g, "");
+let script = compileSpec(specification);
 
 console.log("\n\ncompiled", script);
 fs.writeFileSync(__dirname + "\\compiled.js", script);
