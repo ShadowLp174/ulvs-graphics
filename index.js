@@ -755,7 +755,8 @@ class InputSocketComponent extends Component {
     num: "#427fbd",
     int: "#427fbd",
     any: "#ffffff",
-    str: "#779457"
+    str: "#779457",
+    str: "#daa520"
   }
   static StrokeMapping = {
     bool: { stroke: "transparent", width: 1 },
@@ -1507,7 +1508,7 @@ class VariableWriteNode extends Node {
   constructor(x, y, scale, svgEngine, type="") {
     super(x, y, scale, svgEngine);
 
-    this.setId("OpenVS-Base-Variable-Read");
+    this.setId("OpenVS-Base-Variable-Write");
     this.setName("Write Variable");
     this.setClass(Node.Class.BASIC);
 
@@ -1833,7 +1834,8 @@ class Connector extends Component {
   static typesCompatible(input, output) {
     // input == the socket
     // output == the plug
-    if (input == InputSocketComponent.Type.ANY) return true;
+    // Do NOT allow connections of data and flow connectors
+    if (input == InputSocketComponent.Type.ANY && output !== OutputPlugComponent.Type.CONNECTOR) return true;
     if (input == output) return true;
     const compatible = {
       [InputSocketComponent.Type.NUMBER]: [
@@ -2973,6 +2975,8 @@ class SVGEngine {
     /*this.connectorContainer = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     this.connectorContainer.id = "connectors";
     this.element.appendChild(this.connectorContainer);*/
+
+    // TODO: optimize panning; sub-viewport that just gets moved around (maybe)
 
     this.width = window.innerWidth;
     this.height = window.innerHeight;
