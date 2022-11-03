@@ -2148,6 +2148,7 @@ class Text {
   updateAttributes() {
     const text = this.container;
     text.innerHTML = this.txt;
+//    text.style.fontSize = parseInt(text.style.fontSize.replace("px", "")) * this.scale + "px";
     text.style.textAnchor = this.anchor;
     text.style.dominantBaseline = this.vAnchor; // the vertical alignment
     text.setAttribute("x", this.x);
@@ -2992,6 +2993,7 @@ class SVGEngine {
     }
 
     this.components = [];
+    this.interfaces = [];
     this.scale = 1;
 
     window.uid = () => {
@@ -3006,6 +3008,11 @@ class SVGEngine {
     this.generateStyles();
 
     return this;
+  }
+
+  addUI(interf) {
+    interf.attachEngine(this);
+    this.interfaces.push(interf);
   }
 
   /**
@@ -3359,6 +3366,124 @@ engine.addComponent(log);
 
 const read = new VariableWriteNode(200, 400, 1, engine, "bezier");
 engine.addComponent(read);
+
+class NodeRegistry {
+  constructor() {
+    this.classes = [];
+    return this;
+  }
+  addNodes(...nodes) {
+    nodes.forEach((node) => this.addNode(node));
+  }
+  /**
+   * @description adds a node to the registry
+   *
+   * @param  {object} node The config object of the data to add.
+   * @param  {Class}  node.nodeClass The node to add
+   * @param  {string} node.name The name of the node in the menu
+   * @param  {string} node.class The class of the node
+   * @return {void}
+   */
+  addNode(node) {
+    const index = this.classes.findIndex(e => e.className == node.class);
+    if (index === -1) throw "Unknown Class [" + this.constructor.name + ".addNode]";
+    this.classes[index].nodes.push(node.nodeClass);
+  }
+  /**
+   * @description Add a new class to the registry
+   *
+   * @param  {object} c The config of the new class
+   * @param  {string} c.className The id of the class
+   * @param  {string} c.name The display name of the class
+   * @param  {string} c.color The color of the class
+   * @return {void}
+   */
+  addClassConfig(c) {
+    if (!c) throw "Config cannot be null [" + this.constructor.name + ".addClassConfig]";
+    c.nodes = [];
+    this.classes.push(c);
+  }
+}
+/**
+ * @class
+ * @classdesc This class renders and administrates the block storages, where you can drag new nodes from.
+ */
+class UiBlockShelf {
+  /**
+   * @description Initiates the ui component.
+   *
+   * @param  {NodeRegistry} nodeReg=Node The registry object containign the available nodes.
+   * @return {object}             The initiated object
+   */
+  constructor(nodeReg) {
+    this.registry = nodeReg;
+    this.engine = null;
+
+    this.container = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    this.container.setAttribute("x", 0);
+    this.container.setAttribute("y", 0);
+    this.container.setAttribute("width", 0); // change on attachEngine
+    this.container.setAttribute("height", 0);
+
+    this.shadow = SVGEngine.createShadowFilter(0, 1); // create the shadow defs element
+    this.shadowElement = this.shadow.element;
+    this.container.appendChild(this.shadowElement);
+
+    this.bg = new Rectangle(10, 10, 0, 0, true, 4)
+    this.bg.elem.style.maxHeight = "calc(100% - 20px)";
+    this.bg.setShadow(this.shadow.id);
+    this.bg.setColor("#121212");
+    this.bg.setStroke({
+      stroke: "#0f0f0f",
+      width: 2
+    })
+    this.container.appendChild(this.bg.createSVGElement());
+
+    this.body = new ScrollComponent(10, 10, 0, 0, 1);
+
+    return this;
+  }
+
+  attachEngine(engine) {
+    this.engine = engine;
+
+    this.container.setAttribute("width", this.engine.width); // change on attachEngine
+    this.container.setAttribute("height", this.engine.height);
+
+    console.log(this.engine);
+    this.body.setWidth(this.engine.width * 0.2);
+    this.body.setHeight(this.engine.height - 20);
+
+    this.bg.setWidth(this.engine.width * 0.2);
+    this.bg.setHeight(this.engine.height - 20);
+    this.engine.element.appendChild(this.container);
+
+    this.registry.classes.forEach(config => {
+      let select = new SVGSelect(0, 0, this.engine.width * 0.2 - 5, 1, () => {}, () => {});
+      select.selected.container.innerHTML = config.className;
+      config.nodes.forEach(n => {
+        select.addItem(n.name, n.name);
+      });
+      this.body.addComponent(select);
+    });
+    this.container.appendChild(this.body.createSVGElement());
+  }
+}
+
+const reg = new NodeRegistry();
+reg.addClassConfig({
+  className: Node.Class.BASIC,
+  color: Node.ClassColor[Node.Class.BASIC],
+  name: Node.ClassName[Node.Class.BASIC]
+});
+reg.addNode({
+  nodeClass: ConditionNode,
+  class: Node.Class.BASIC,
+  name: "Condition"
+});
+const shelf = new UiBlockShelf(reg);
+engine.addUI(shelf);
+console.log(shelf);
 
 document.body.style.overflow = "hidden";
 
