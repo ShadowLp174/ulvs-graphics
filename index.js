@@ -2602,6 +2602,7 @@ class SVGSelect extends Component {
     this.flipped = this.builder.build();
 
     this.expanded = 0;
+    this.resetPlaceholder = false; // true == placeholder will stay the same
     this.items = [];
 
     this.container.addEventListener("pointerup", (e) => {
@@ -2621,14 +2622,31 @@ class SVGSelect extends Component {
       const data = {
         selected: id,
         label: label,
-        target: e.target
+        target: e.target,
+        clientPos: {
+          x: e.clientX,
+          y: e.clientY
+        }
       };
-      if (cb) cb(data);
-      if (this.callback) this.callback(data);
-      this.selected.setText(label);
+      if (cb) cb.call(this, data);
+      if (this.callback) this.callback.call(this, data);
+      if (!this.resetPlaceholder) this.selected.setText(label);
       this.expanded = 0;
       this.collapse();
     });
+  }
+  get dynamicPlaceholder() {
+    return !this.resetPlaceholder;
+  }
+
+  /**
+   * @description change wether to change the placeholder of the select to the selected item on click
+   * @member
+   * @param  {boolean} bool If this is set to true, then the default placeholder will be exchanged with the content of the item that was clicked.
+   * @return {void}
+   */
+  set dynamicPlaceholder(bool) {
+    this.resetPlaceholder = !bool;
   }
   toggle() {
     if (this.expanded) {
@@ -2637,7 +2655,7 @@ class SVGSelect extends Component {
       this.expand();
     }
     this.expanded = 1 - this.expanded; // math magic :D
-    this.ccb(this.expanded);
+    this.ccb.call(this, this.expanded);
   }
   expand() {
     this.bgRect.setStroke({
@@ -3370,6 +3388,8 @@ engine.addComponent(read);
 class NodeRegistry {
   constructor() {
     this.classes = [];
+    this.nodeClasses = [];
+
     return this;
   }
   addNodes(...nodes) {
@@ -3387,7 +3407,8 @@ class NodeRegistry {
   addNode(node) {
     const index = this.classes.findIndex(e => e.className == node.class);
     if (index === -1) throw "Unknown Class [" + this.constructor.name + ".addNode]";
-    this.classes[index].nodes.push(node.nodeClass);
+    this.classes[index].nodes.push(node);
+    this.nodeClasses.push(node.nodeClass);
   }
   /**
    * @description Add a new class to the registry
@@ -3402,6 +3423,17 @@ class NodeRegistry {
     if (!c) throw "Config cannot be null [" + this.constructor.name + ".addClassConfig]";
     c.nodes = [];
     this.classes.push(c);
+  }
+
+  /**
+   * @description Get the class of a node by name
+   *
+   * @param  {string} name The class name of the node
+   * @return {Class}  The class of the corresponding node
+   */
+  getNodeClass(name) {
+    if (!name) throw "Class name cannot be null [" + this.constructor.name + ".getNodeClass]";
+    return this.nodeClasses.find(el => el.name === name);
   }
 }
 /**
@@ -3436,12 +3468,17 @@ class UiBlockShelf {
     this.bg.setStroke({
       stroke: "#0f0f0f",
       width: 2
-    })
+    });
     this.container.appendChild(this.bg.createSVGElement());
 
-    this.body = new ScrollComponent(10, 10, 0, 0, 1);
+    this.body = new ScrollComponent(12, 12, 0, 0, 1);
 
     return this;
+  }
+
+  spawn(id, x=10, y=10) {
+    let node = new (this.registry.getNodeClass(id))(x, y, this.engine.scale, this.engine, "bezier");
+    this.engine.addComponent(node);
   }
 
   attachEngine(engine) {
@@ -3450,22 +3487,32 @@ class UiBlockShelf {
     this.container.setAttribute("width", this.engine.width); // change on attachEngine
     this.container.setAttribute("height", this.engine.height);
 
-    console.log(this.engine);
-    this.body.setWidth(this.engine.width * 0.2);
-    this.body.setHeight(this.engine.height - 20);
+    this.body.setWidth(this.engine.width * 0.2 - 4);
+    this.body.setHeight(this.engine.height - 24);
 
     this.bg.setWidth(this.engine.width * 0.2);
-    this.bg.setHeight(this.engine.height - 20);
     this.engine.element.appendChild(this.container);
 
-    this.registry.classes.forEach(config => {
-      let select = new SVGSelect(0, 0, this.engine.width * 0.2 - 5, 1, () => {}, () => {});
-      select.selected.container.innerHTML = config.className;
+    const ui = this;
+    this.registry.classes.forEach((config, i) => {
+      let y = (18 * i + 2 * i) * this.engine.scale;
+      let select = new SVGSelect(0, y, this.engine.width * 0.2 - 5, 1, () => {}, function(_data) {
+        let sel = this;
+        sel.renderContainer = ui.body.container;
+        sel.moveToTop();
+      });
+      select.selected.container.innerHTML = config.name;
+      select.dynamicPlaceholder = false;
       config.nodes.forEach(n => {
-        select.addItem(n.name, n.name);
+        select.addItem(n.name, n.nodeClass.name, (d) => {
+          this.spawn(d.selected, d.clientPos.x - 25, d.clientPos.y - 15);
+        });
       });
       this.body.addComponent(select);
     });
+    let classCount = this.registry.classes.length;
+    let height = Math.min(18 * this.engine.scale * classCount + ((classCount + 1) * 2), this.engine.height - 20);
+    this.bg.setHeight(height);
     this.container.appendChild(this.body.createSVGElement());
   }
 }
@@ -3476,11 +3523,49 @@ reg.addClassConfig({
   color: Node.ClassColor[Node.Class.BASIC],
   name: Node.ClassName[Node.Class.BASIC]
 });
+reg.addClassConfig({
+  className: Node.Class.CONSOLE,
+  color: Node.ClassColor[Node.Class.CONSOLE],
+  name: Node.ClassName[Node.Class.CONSOLE]
+});
+reg.addClassConfig({
+  className: Node.Class.EVENT,
+  color: Node.ClassColor[Node.Class.EVENT],
+  name: Node.ClassName[Node.Class.EVENT]
+});
+reg.addClassConfig({
+  className: Node.Class.DEVICEINFO,
+  color: Node.ClassColor[Node.Class.DEVICEINFO],
+  name: Node.ClassName[Node.Class.DEVICEINFO]
+});
+
 reg.addNode({
   nodeClass: ConditionNode,
   class: Node.Class.BASIC,
   name: "Condition"
 });
+reg.addNode({
+  nodeClass: ConsoleLogNode,
+  class: Node.Class.CONSOLE,
+  name: "Console.log()"
+});
+reg.addNode({
+  nodeClass: AdditionNode,
+  class: Node.Class.BASIC,
+  name: "Add (math)"
+});
+reg.addNode({
+  nodeClass: IsMobileNode,
+  class: Node.Class.DEVICEINFO,
+  name: "Is Mobile?"
+});
+reg.addNode({
+  nodeClass: ScreenSizeNode,
+  class: Node.Class.DEVICEINFO,
+  name: "Screen Size"
+});
+
+
 const shelf = new UiBlockShelf(reg);
 engine.addUI(shelf);
 console.log(shelf);
