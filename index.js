@@ -14,7 +14,7 @@ class Component {
    * @param  {number} scale=1 The scale of the values
    * @return {Component}      The component object
    */
-  constructor(x, y, width, height, scale=1) {
+  constructor(x, y, width, height, scale = 1) {
     this.x = x;
     this.y = y;
     this.width = width;
@@ -113,7 +113,7 @@ class Component {
    * @param  {HTMLElement} c=null (Optional) Equivalent to setting the .renderContainer property.
    * @return {HTMLElement}        Returns the HTML element, containing all the children.
    */
-  createSVGElement(c=null) { // create the whole svg element and return it
+  createSVGElement(c = null) { // create the whole svg element and return it
     this.renderContainer = c;
     this.container.innerHTML = "";
     this.elements.forEach((elem) => { // loop through each sub-element
@@ -189,7 +189,7 @@ class Viewport {
    * of any type.
    * @returns {void}
    */
-  addComponent(c, render=(el)=>el.createSVGElement()) {
+  addComponent(c, render = (el) => el.createSVGElement()) {
     this.components.push({ element: c, render: render });
   }
   updateAttributes() {
@@ -227,7 +227,7 @@ class Group { // somehow the equivalent to the <g> element
       c.setScale(s);
     });
   }
-  addComponent(c, render=(el)=>el.createSVGElement()) {
+  addComponent(c, render = (el) => el.createSVGElement()) {
     this.components.push(c);
     this.container.appendChild(render(c));
   }
@@ -241,7 +241,7 @@ class UserInteractionManager {
 
     return this;
   }
-  initListeners(el, onStart, onMove, onEnd, maxTouches=Number.POSITIVE_INFINITY, reuseTouches=false) { // TODO: fix bugs appearing when using more than one finger
+  initListeners(el, onStart, onMove, onEnd, maxTouches = Number.POSITIVE_INFINITY, reuseTouches = false) { // TODO: fix bugs appearing when using more than one finger
     // mouse listeners
     el.addEventListener("mousedown", onStart);
     el.addEventListener("mousemove", onMove);
@@ -389,7 +389,7 @@ class OutputPlugComponent extends Component {
    * @param  {string} label=""              The label of the plug.
    * @return {object}                       The OutputPlugComponent object.
    */
-  constructor(x, y, width, height, scale, type, engine, node, styleType="", label="") {
+  constructor(x, y, width, height, scale, type, engine, node, styleType = "", label = "") {
     super(x, y, width, height, scale);
 
     this.styleType = styleType; // the style of the connector like Bezier, or Line
@@ -424,7 +424,7 @@ class OutputPlugComponent extends Component {
       return this;
     }
 
-    this.oT = new RoundedTriangleComponent(0, 2.5*this.scale, 90, 1 * this.scale); // the white triangle
+    this.oT = new RoundedTriangleComponent(0, 2.5 * this.scale, 90, 1 * this.scale); // the white triangle
     this.oT.setColor("white");
     this.elements.push({ element: this.oT, render: (el) => el.createSVGElement() });
 
@@ -615,12 +615,13 @@ class OutputPlugComponent extends Component {
     this.activeConnector.connectedNode = this.snappingSocket.socket.node.id;
     socket.connected = true;
     socket.connector = this.activeConnector;
+    const connector = this.activeConnector;
     socket.node.addEventListener("move", (_e) => {
       if (this.connected.length == 0 || !this.connected) return; // only execute if the node is currently connected
       const pos = this.getAbsCoords(socket.cCircle.container);
       pos.x += socket.cCircle.radius * socket.scale;
       pos.y += socket.cCircle.radius * socket.scale;
-      socket.connector.moveTo(pos);
+      connector.moveTo(pos);
     });
     socket.connect(this.activeConnector);
     this.connected.push(this.activeConnector);
@@ -640,7 +641,7 @@ class OutputPlugComponent extends Component {
     this.interactions.initListeners(this.oCircle.container, (e) => {
       if (this.type == OutputPlugComponent.Type.ANY) return;
       this.mouseDown(e);
-    }, () => {}, () => {});
+    }, () => { }, () => { });
     this.node.addEventListener("move", () => {
       if (!this.activeConnector || !this.connected) return; // only execute if there is a connected connector
       const pos = this.getAbsCoords(this.oCircle.container);
@@ -650,7 +651,7 @@ class OutputPlugComponent extends Component {
         c.moveStartTo(pos);
       });
     });
-    this.interactions.initListeners(window, () => {}, (e) => {
+    this.interactions.initListeners(window, () => { }, (e) => {
       // move listener
       if (!this.dragging) return;
       this.activeConnector.moveTo({ x: e.clientX, y: e.clientY });
@@ -786,7 +787,7 @@ class InputSocketComponent extends Component {
    * @param  {String} label         the label of the socket
    * @param  {Boolean} userInput=true Wether or not to include some kind of input component for the user to enter a value
    */
-  constructor(x, y, width, height, scale, type, node, label, userInput=true) {
+  constructor(x, y, width, height, scale, type, node, label, userInput = true) {
     super(x, y, width, height, scale);
 
     this.type = type; // TODO: the type of the socket
@@ -816,7 +817,7 @@ class InputSocketComponent extends Component {
     }
 
     // only draw this when creating a connection connector
-    this.cT = new RoundedTriangleComponent(22*this.scale, 2.5 * this.scale, 90, 1 * this.scale);
+    this.cT = new RoundedTriangleComponent(22 * this.scale, 2.5 * this.scale, 90, 1 * this.scale);
     this.cT.setColor(this.color);
     this.elements.push({ element: this.cT, render: (el) => el.createSVGElement() });
 
@@ -892,12 +893,12 @@ class InputSocketComponent extends Component {
       y: (metrics.height + 3) * this.scale
     });
     this.typeLabel.setPosition({
-      x: (this.offset - 21 + metrics.width + typeMetrics.width)*this.scale,
+      x: (this.offset - 21 + metrics.width + typeMetrics.width) * this.scale,
       y: (typeMetrics.height + 2) * this.scale
     });
   }
   getUserInputComponent() {
-    switch(this.type) {
+    switch (this.type) {
       case InputSocketComponent.Type.STRING:
       case InputSocketComponent.Type.NUMBER:
       case InputSocketComponent.Type.INT:
@@ -931,24 +932,24 @@ class InputSocketComponent extends Component {
 
     let typeMetrics = Text.measureText(InputSocketComponent.TypeLabel[this.type], (9 * this.scale) + "px");
     this.typeMetrics = typeMetrics;
-    this.typeLabel = new Text((this.offset + 23 + metrics.width)*this.scale, (2) * this.scale, InputSocketComponent.TypeLabel[this.type], this.scale, Text.Anchor.START, Text.VerticalAnchor.TOP);
+    this.typeLabel = new Text((this.offset + 23 + metrics.width) * this.scale, (2) * this.scale, InputSocketComponent.TypeLabel[this.type], this.scale, Text.Anchor.START, Text.VerticalAnchor.TOP);
     this.typeLabel.container.style.fontSize = (9 * this.scale) + "px";
     this.typeLabel.setColor(this.color);
     this.elements.push({ element: this.typeLabel, render: (el) => el.createSVGElement() });
 
     this.modify(true);
   }
-  modify(isInit=false) {
-    switch(this.type) {
+  modify(isInit = false) {
+    switch (this.type) {
       case InputSocketComponent.Type.ANY:
         this.cCircle.setColor("transparent");
         this.cCircle.setStroke(InputSocketComponent.StrokeMapping[this.type]);
         if (isInit) this.defRadius *= 0.7;
         this.cCircle.setRadius(this.cCircle.radius * 0.7, false);
-      break;
+        break;
       default:
 
-      break;
+        break;
     }
   }
 
@@ -1066,7 +1067,7 @@ class Node extends Component {
     this.bgRect.setShadow(this.shadows.id);
     this.elements.push({ element: this.bgRect, render: (el) => el.createSVGElement() });
 
-    this.hRect = new Rectangle(0, 0, this.tw, 33 * this.scale, true, 5);
+    this.hRect = new Rectangle(0, 0, this.tw, 33 * this.scale, false, 5);
     this.hRect.setColor(this.colors.header);
     this.hRect.setStroke({
       color: this.colors.background,
@@ -1088,11 +1089,11 @@ class Node extends Component {
     this.outputPlugs = [];
     this.labels = [];
     this.plugs = [];
-    this.connectors.addComponent(this.sockets, (el) => {return el.map(e => e.createSVGElement());});
-    this.connectors.addComponent(this.labels, (el) => {return el.map(e => e.createSVGElement());});
-    this.connectors.addComponent(this.plugs, (el) => {return el.map(e => e.createSVGElement());});
-    this.body.addComponent(this.inputSockets, (el) => {return el.map(e => e.createSVGElement());});
-    this.body.addComponent(this.outputPlugs, (el) => {return el.map(e => e.createSVGElement());});
+    this.connectors.addComponent(this.sockets, (el) => { return el.map(e => e.createSVGElement()); });
+    this.connectors.addComponent(this.labels, (el) => { return el.map(e => e.createSVGElement()); });
+    this.connectors.addComponent(this.plugs, (el) => { return el.map(e => e.createSVGElement()); });
+    this.body.addComponent(this.inputSockets, (el) => { return el.map(e => e.createSVGElement()); });
+    this.body.addComponent(this.outputPlugs, (el) => { return el.map(e => e.createSVGElement()); });
     this.connectionOffset = 0;
 
     this.outgoingConnectors = [];
@@ -1130,7 +1131,7 @@ class Node extends Component {
 
     this.eventElem = document.createElement("span");
     this.events = {
-      move: new CustomEvent("move", { detail: {node: this} })
+      move: new CustomEvent("move", { detail: { node: this } })
     }
 
     this.renderContainer = this.parentSVGEngine.element;
@@ -1187,6 +1188,9 @@ class Node extends Component {
       return this.embedContainer; // don't execute the inherited function
     }
     return super.createSVGElement();
+  }
+  createPreview() {
+    return new NodePreview(0, 0, this.scale, this.class);
   }
   embedBody(container, node) { // Embed all the connectors and similar in another element
     this.embedContainer = container;
@@ -1264,7 +1268,7 @@ class Node extends Component {
     this.plugs.forEach((plug, i) => {
       plug.setPosition({
         x: this.tw - (36 - 8) * this.scale,
-        y: (this.th * 0.2) + 25*this.scale + (36 * i) * this.scale
+        y: (this.th * 0.2) + 25 * this.scale + (36 * i) * this.scale
       })
       plug.setScale(this.scale);
     });
@@ -1295,7 +1299,7 @@ class Node extends Component {
   setName(name) {
     this.name = name;
     if (!this.nText) {
-      this.nText = new Text(5*this.scale, 10*this.scale, name, this.scale, Text.Anchor.START, Text.VerticalAnchor.TOP);
+      this.nText = new Text(5 * this.scale, 10 * this.scale, name, this.scale, Text.Anchor.START, Text.VerticalAnchor.TOP);
       this.nText.setColor("white");
       this.elements.push({ element: this.nText, render: (el) => el.createSVGElement() });
       return;
@@ -1332,7 +1336,7 @@ class Node extends Component {
   }
   setConnectionOffset(delta) {
     this.connectionOffset = delta;
-    this.bgRect.setHeight(this.bgRect.height +  delta);
+    this.bgRect.setHeight(this.bgRect.height + delta);
   }
   /**
    * @description Add a new program flow socket. Flow sockets/plugs are used to
@@ -1403,7 +1407,7 @@ class Node extends Component {
    * @return {InputSocketComponent} The initiated input socket.
    */
   addInputSocket(type, label) {
-    const socket = new InputSocketComponent((-8 * this.scale), (28 * this.inputSockets.length) * this.scale, 16*this.scale, 34*this.scale, this.scale, type, (this.embedNode || this), label);
+    const socket = new InputSocketComponent((-8 * this.scale), (28 * this.inputSockets.length) * this.scale, 16 * this.scale, 34 * this.scale, this.scale, type, (this.embedNode || this), label);
 
     const currLength = Math.max(this.inputSockets.length, this.outputPlugs.length);
     this.inputSockets.push(socket);
@@ -1450,16 +1454,16 @@ class Node extends Component {
 
   /**
    * @description Add a user input to the body of the node. The user can enter
-   * values that will be used in the compiling process as constants.
-   *
+   * values that will be used in the compiling process as constants. Temporary deprecated
+   * @deprecated Temporary deprecated as user inputs are included in input sockets
    * @param  {InputSocketComponentType} type     The data type of the input.
    * @param  {string} label="" The label of thé input that will be displayed next to it.
    * @return {object}          The input object depending on the data type.
    */
-  addUserInput(type, label="") {
+  addUserInput(type, label = "") {
     const object = new ({
       [InputSocketComponent.Type.STRING]: SVGInput
-    })[type]((10 * this.scale), (28 * this.inputSockets.length) * this.scale, 64*this.scale, 1, label);
+    }[type])((10 * this.scale), (28 * this.inputSockets.length) * this.scale, 64 * this.scale, 1, label);
     object.dataConstant = true; // mark for compiler
     const currLength = Math.max(this.inputSockets.length, this.outputPlugs.length);
     this.inputSockets.push(object);
@@ -1472,8 +1476,54 @@ class Node extends Component {
     return object;
   }
 }
+class NodePreview extends Component {
+  constructor(x, y, scale, nodeClass) {
+    const measures = {
+      header: {
+        height: 33 / 4,
+        radius: 2
+      },
+      background: {
+        width: 200 / 4,
+        height: 45 / 4,
+        radius: 2
+      }
+    }
+    let height = measures.background.height * scale;
+    let width = measures.background.width * scale;
+    super(x, y, width, height, scale);
+
+    this.colors = {
+      background: "#1d1d1d",
+      header: "#8a5794"
+    }
+
+    this.class = nodeClass;
+
+    this.bgRect = new Rectangle(0, 1, this.tw, this.th, true, measures.background.radius);
+    this.bgRect.setColor(this.colors.background);
+    this.bgRect.setStroke({
+      color: "black",
+      width: 0.5
+    });
+    this.elements.push({ element: this.bgRect });
+
+    this.hRect = new Rectangle(0, 0, this.tw, measures.header.height * this.scale, false, measures.header.radius);
+    this.hRect.setColor(Node.ClassColor[this.class]);
+    this.hRect.setStroke({
+      color: Node.ClassColor[this.class],
+      width: 0.5
+    });
+    this.clip = this.hRect.createClipPath(0);
+    this.hRect.setClipPath(this.clip.id);
+    this.elements.push({ element: this.clip, render: (el) => el.element });
+    this.elements.push({ element: this.hRect });
+
+    return this;
+  }
+}
 class ConditionNode extends Node {
-  constructor(x, y, scale, svgEngine, type="") {
+  constructor(x, y, scale, svgEngine, type = "") {
     super(x, y, scale, svgEngine);
 
     this.setId("OpenVS-Base-Basic-Condition");
@@ -1505,7 +1555,7 @@ class ConditionNode extends Node {
   }
 }
 class VariableWriteNode extends Node {
-  constructor(x, y, scale, svgEngine, type="") {
+  constructor(x, y, scale, svgEngine, type = "") {
     super(x, y, scale, svgEngine);
 
     this.setId("OpenVS-Base-Variable-Write");
@@ -1515,12 +1565,13 @@ class VariableWriteNode extends Node {
     this.addSocket();
     this.addPlug("", this.type);
 
+    this.addInputSocket(InputSocketComponent.Type.STRING, "Name");
     this.addInputSocket(InputSocketComponent.Type.STRING, "Value");
   }
 }
 // TODO: Group nodes inside their classes
 class ConsoleLogNode extends Node {
-  constructor(x, y, scale, svgEngine, type="") {
+  constructor(x, y, scale, svgEngine, type = "") {
     super(x, y, scale, svgEngine);
 
     this.setId("OpenVS-Base-Console-Log");
@@ -1542,7 +1593,7 @@ class NodeClass {
     return this;
   }
 
-  addNode(id, name, c, custom=()=>{}) {
+  addNode(id, name, c, custom = () => { }) {
     nodes.push({
       id: id,
       name: name,
@@ -1554,7 +1605,7 @@ class NodeClass {
   // TODO: Finish
 }
 class IsMobileNode extends Node {
-  constructor(x, y, scale, svgEngine, type="") {
+  constructor(x, y, scale, svgEngine, type = "") {
     super(x, y, scale, svgEngine);
 
     this.setId("OpenVS-Base-DInfo-Mobile");
@@ -1567,7 +1618,7 @@ class IsMobileNode extends Node {
   }
 }
 class ScreenSizeNode extends Node {
-  constructor(x, y, scale, svgEngine, type="") {
+  constructor(x, y, scale, svgEngine, type = "") {
     super(x, y, scale, svgEngine);
 
     this.setId("OpenVS-Base-DInfo-SSize");
@@ -1581,7 +1632,7 @@ class ScreenSizeNode extends Node {
   }
 }
 class AdditionNode extends Node {
-  constructor(x, y, scale, svgEngine, type="", embed=null, embedNode=null) {
+  constructor(x, y, scale, svgEngine, type = "", embed = null, embedNode = null) {
     super(x, y, scale, svgEngine);
 
     this.setId("OpenVS-Base-Basic-Add");
@@ -1590,8 +1641,8 @@ class AdditionNode extends Node {
 
     if (embed) this.embedBody(embed, embedNode);
 
-    this.addInputSocket(InputSocketComponent.Type.NUMBER,"A", type);
-    this.addInputSocket(InputSocketComponent.Type.NUMBER,"B", type);
+    this.addInputSocket(InputSocketComponent.Type.NUMBER, "A", type);
+    this.addInputSocket(InputSocketComponent.Type.NUMBER, "B", type);
 
     this.addOutputPlug(OutputPlugComponent.Type.NUMBER, "Result", type);
 
@@ -1599,7 +1650,7 @@ class AdditionNode extends Node {
   }
 }
 class GeneralAdditionNode extends Node {
-  constructor(x, y, scale, svgEngine, type="", embed=null, embedNode=null) {
+  constructor(x, y, scale, svgEngine, type = "", embed = null, embedNode = null) {
     super(x, y, scale, svgEngine);
 
     this.setId("OpenVS-Base-Baisc-GAdd");
@@ -1656,7 +1707,7 @@ class GeneralAdditionNode extends Node {
   }
 }
 class MultiplicationNode extends Node {
-  constructor(x, y, scale, svgEngine, type="", embed=null, embedNode=null) {
+  constructor(x, y, scale, svgEngine, type = "", embed = null, embedNode = null) {
     super(x, y, scale, svgEngine);
 
     this.setId("OpenVS-Base-Basic-Multiply");
@@ -1665,8 +1716,8 @@ class MultiplicationNode extends Node {
 
     if (embed) this.embedBody(embed, embedNode);
 
-    this.addInputSocket(InputSocketComponent.Type.NUMBER,"A", type);
-    this.addInputSocket(InputSocketComponent.Type.NUMBER,"B", type);
+    this.addInputSocket(InputSocketComponent.Type.NUMBER, "A", type);
+    this.addInputSocket(InputSocketComponent.Type.NUMBER, "B", type);
 
     this.addOutputPlug(OutputPlugComponent.Type.NUMBER, "Product", type);
 
@@ -1674,7 +1725,7 @@ class MultiplicationNode extends Node {
   }
 }
 class MathNode extends Node {
-  constructor(x, y, scale, svgEngine, type="") {
+  constructor(x, y, scale, svgEngine, type = "") {
     super(x, y, scale, svgEngine);
 
     this.setId("OpenVS-Base-Basic-Math");
@@ -1725,29 +1776,33 @@ class MathNode extends Node {
   setupBody(id) {
     this.clearConnections();
     this.embeds.container.innerHTML = "";
-    switch(id) {
+    switch (id) {
       case "add-concat":
         const addition = new AdditionNode(0, 0, this.scale, this.parentSVGEngine, this.cStyle, this.embeds.container, this);
-        this.elements.push({ element: addition, render: (el) => {
-          el.createSVGElement();
-        }});
+        this.elements.push({
+          element: addition, render: (el) => {
+            el.createSVGElement();
+          }
+        });
         this.transfer(addition);
         console.log(this);
         if (!this.init) return addition.createSVGElement();
         this.init = false;
-      break;
+        break;
       case "multiply":
         const mult = new MultiplicationNode(0, 0, this.scale, this.parentSVGEngine, this.cStyle, this.embeds.container, this);
-        this.elements.push({ element: mult, render: (el) => {
-          el.createSVGElement();
-        }});
+        this.elements.push({
+          element: mult, render: (el) => {
+            el.createSVGElement();
+          }
+        });
         this.transfer(mult);
         if (!this.init) return mult.createSVGElement();
         this.init = false;
-      break;
+        break;
       default:
         console.warn("Suspicious case detected 🤨: ", id);
-      break;
+        break;
     }
   }
   switched(item) {
@@ -1763,7 +1818,7 @@ class MathNode extends Node {
   }
 }
 class StartEventNode extends Node {
-  constructor(x, y, scale, svgEngine, type="") {
+  constructor(x, y, scale, svgEngine, type = "") {
     super(x, y, scale, svgEngine);
 
     this.setId("OpenVS-Base-Event-Start");
@@ -1787,7 +1842,7 @@ class Attachment {
   }
 }
 class NodeDragAttachment extends Attachment {
-  constructor(onStart=null) {
+  constructor(onStart = null) {
     super();
 
     this.onStart = onStart;
@@ -1814,12 +1869,12 @@ class NodeDragAttachment extends Attachment {
         y: this.node.y
       }
       this.dragging = true;
-    }, () => {}, () => {
+    }, () => { }, () => {
       // mouseup
       this.mouseStartPos = {};
       this.dragging = false;
     }, 1);
-    this.interactions.initListeners(window, () => {}, (e) => {
+    this.interactions.initListeners(window, () => { }, (e) => {
       // mousemove
       if (!this.dragging) return;
       let xDiff = e.clientX - this.mouseStartPos.x;
@@ -1827,7 +1882,7 @@ class NodeDragAttachment extends Attachment {
       let x = this.nodeStartPos.x + xDiff;
       let y = this.nodeStartPos.y + yDiff;
       this.node.setPosition({ x: x, y: y });
-    }, () => {});
+    }, () => { });
   }
 }
 class Connector extends Component {
@@ -1901,7 +1956,7 @@ class Connector extends Component {
   attachStartListener(el) {
     this.plug.interactions.initListeners(el, (e) => {
       this.plug.mouseDown(e);
-    }, () => {}, () => {});
+    }, () => { }, () => { });
   }
   disconnect() {
     this.connectedTo.connected = false;
@@ -1923,7 +1978,7 @@ class Connector extends Component {
       this.connectedTo.disconnect(this);
       this.connectedTo = { id: null };
       this.connectedNode = null;
-    }, () => {}, () => {});
+    }, () => { }, () => { });
   }
 }
 class BezierConnector extends Connector {
@@ -1973,7 +2028,7 @@ class BezierConnector extends Connector {
     this.pathBuilder.moveTo(0, 0);
     this.pathBuilder.cubicCurve(end.x / 2, 0, end.x / 2, end.y, end.x, end.y);
     this.line.path = this.pathBuilder.build();
-    this.eCircle.setPosition({ x: end.x, y: end.y});
+    this.eCircle.setPosition({ x: end.x, y: end.y });
   }
   moveTo(mousePos) {
     super.moveTo(mousePos);
@@ -2013,7 +2068,7 @@ class LineConnector extends Connector {
   }
   update() {
     const mousePos = this.mousePos;
-    this.line.setPosition({x: 0, y: 0}, { x: mousePos.x - this.x, y: mousePos.y - this.y});
+    this.line.setPosition({ x: 0, y: 0 }, { x: mousePos.x - this.x, y: mousePos.y - this.y });
     this.eCircle.setPosition({ x: mousePos.x - this.x, y: mousePos.y - this.y });
   }
   moveTo(mousePos) {
@@ -2033,7 +2088,7 @@ class ConnectorManager {
   static LINE = LineConnector;
 
   static getConnector(type) {
-    switch(type) {
+    switch (type) {
       case "bezier":
         return ConnectorManager.BEZIER;
       case "line":
@@ -2056,14 +2111,14 @@ class ConnectorManager {
  * @see See {@link https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/dominant-baseline}
  * for the documentation on HTML level.
  */
- /**
-  * @typedef {string} HorizontalTextAnchor
-  * @property {string} START Align the start of the text to the x coordinate
-  * @property {string} MIDDLE Aligne the middle of the text to the x coordinate
-  * @property {string} END Align the end of the text to the x coordinate
-  * @see See {@link https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/text-anchor}
-  * for an explanation of it.
-  */
+/**
+ * @typedef {string} HorizontalTextAnchor
+ * @property {string} START Align the start of the text to the x coordinate
+ * @property {string} MIDDLE Aligne the middle of the text to the x coordinate
+ * @property {string} END Align the end of the text to the x coordinate
+ * @see See {@link https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/text-anchor}
+ * for an explanation of it.
+ */
 /**
  * @class
  * @classdesc A basic component to display text.
@@ -2102,7 +2157,7 @@ class Text {
    * for more information about the horizontal anchor and {@link https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/dominant-baseline}
    * for the vertical anchor.
    */
-  constructor(x, y, text, scale, anchor=Text.Anchor.START, vAnchor=Text.VerticalAnchor.BOTTOM) {
+  constructor(x, y, text, scale, anchor = Text.Anchor.START, vAnchor = Text.VerticalAnchor.BOTTOM) {
     this.x = x;
     this.y = y;
     this.txt = text;
@@ -2125,14 +2180,14 @@ class Text {
   static getCSSStyle(el, prop) {
     return window.getComputedStyle(el, null).getPropertyValue(prop);
   }
-  static getCanvasFont(el=document.body) {
+  static getCanvasFont(el = document.body) {
     const fontWeight = Text.getCSSStyle(el, 'font-weight') || 'normal';
     const fontSize = Text.getCSSStyle(el, 'font-size') || '16px';
     const fontFamily = Text.getCSSStyle(el, 'font-family') || 'Times New Roman';
 
     return `${fontWeight} ${fontSize} ${fontFamily}`;
   }
-  static measureText(text, font=Text.getCanvasFont()) {
+  static measureText(text, font = Text.getCanvasFont()) {
     window.openvs_canvas = window.openvs_canvas || (window.openvs_canvas = document.createElement("canvas"));
     const context = window.openvs_canvas.getContext("2d");
     context.font = font;
@@ -2148,7 +2203,7 @@ class Text {
   updateAttributes() {
     const text = this.container;
     text.innerHTML = this.txt;
-//    text.style.fontSize = parseInt(text.style.fontSize.replace("px", "")) * this.scale + "px";
+    //    text.style.fontSize = parseInt(text.style.fontSize.replace("px", "")) * this.scale + "px";
     text.style.textAnchor = this.anchor;
     text.style.dominantBaseline = this.vAnchor; // the vertical alignment
     text.setAttribute("x", this.x);
@@ -2267,7 +2322,7 @@ class PathBuilder {
   uid() {
     return Date.now().toString(36) + Math.random().toString(36).substr(2);
   }
-  moveTo(x, y, relative=false) {
+  moveTo(x, y, relative = false) {
     const instruction = {
       command: (relative) ? "m" : "M",
       content: " " + x + " " + y,
@@ -2276,7 +2331,7 @@ class PathBuilder {
     this.instructions.push(instruction);
     return instruction.id;
   }
-  lineTo(x, y, relative=false) {
+  lineTo(x, y, relative = false) {
     const instruction = {
       command: (relative) ? "l" : "L",
       content: " " + x + " " + y,
@@ -2285,7 +2340,7 @@ class PathBuilder {
     this.instructions.push(instruction);
     return instruction.id;
   }
-  cubicCurve(x1, y1, x2, y2, x, y, relative=false) {
+  cubicCurve(x1, y1, x2, y2, x, y, relative = false) {
     const instruction = {
       command: (relative) ? "c" : "C",
       content: " " + x1 + " " + y1 + " " + x2 + " " + y2 + " " + x + " " + y,
@@ -2338,7 +2393,7 @@ class Circle {
   get radius() {
     return this.r;
   }
-  setRadius(r, changePos=false) {
+  setRadius(r, changePos = false) {
     this.r = r;
     if (!changePos || !this.cornerCoords) return this.updateAttributes();
     this.x = this.ox + r;
@@ -2377,12 +2432,12 @@ class Circle {
   }
 }
 class Rectangle {
-  constructor(x, y, width, height, rounded=false, radius=0) {
+  constructor(x, y, width, height, rounded = false, radius = 0) {
     this.x = x;
     this.y = y;
     this.height = height;
     this.width = width;
-    this.oheight = JSON.parse(JSON.stringify(height));
+    this.oheight = JSON.parse(JSON.stringify(height)); // copy, don't reference the values
     this.owidth = JSON.parse(JSON.stringify(width));
     this.rounded = rounded;
     this.isComponent = true;
@@ -2464,11 +2519,11 @@ class Rectangle {
     if (this.stroke) rect.setAttribute("stroke", this.stroke);
     if (this.strokeWidth) rect.setAttribute("stroke-width", this.strokeWidth);
     if (this.shadow) rect.setAttribute("filter", "url(#" + this.shadow + ")");
-    if (!this.rounded) return rect;
     if (this.clipPath) {
       rect.setAttribute("clip-path", "url(#" + this.clipPath + ")");
       return rect;
     }
+    if (!this.rounded) return rect;
     rect.setAttribute("rx", this.rx);
     rect.setAttribute("ry", this.ry);
   }
@@ -2504,7 +2559,7 @@ class Rectangle {
   }
 }
 class SVGInput extends Component {
-  constructor(x, y, width, scale, cb=()=>{}) {
+  constructor(x, y, width, scale, cb = () => { }) {
     super(x, y, width, 18, scale);
 
     this.htmlContainer = document.createElementNS("http://www.w3.org/2000/svg", "foreignObject");
@@ -2522,7 +2577,7 @@ class SVGInput extends Component {
     var lastValue = "";
     var reset = false;
     this.input.onblur = () => {
-      if (reset) {reset = false; return this.input.value = lastValue;}
+      if (reset) { reset = false; return this.input.value = lastValue; }
       this.storedData = this.input.value;
       this.cb(this.input.value);
     }
@@ -2539,7 +2594,7 @@ class SVGInput extends Component {
   }
 }
 class SVGSelect extends Component {
-  constructor(x, y, width, scale, cb=null, ccb=null) {
+  constructor(x, y, width, scale, cb = null, ccb = null) {
     super(x, y, width, 18, scale);
 
     this.callback = cb;
@@ -2613,7 +2668,7 @@ class SVGSelect extends Component {
 
     return this;
   }
-  addItem(label, id, cb=null) {
+  addItem(label, id, cb = null) {
     const text = new Text(3, (18 * (this.items.length + 1) - 3) * this.scale, label, this.scale, Text.Anchor.START, Text.VerticalAnchor.BOTTOM);
     text.setColor("#808080");
     this.body.addComponent(text);
@@ -2665,6 +2720,7 @@ class SVGSelect extends Component {
     this.path.container.style.d = 'path("' + this.flipped + '")';
 
     const h = Math.min(this.maxHeight, (18 * (this.items.length + 1)) * this.scale);
+    console.log(h, this.dropRect, this.body);
     this.dropRect.setHeight(h);
     this.body.setHeight(h - this.th);
   }
@@ -2753,12 +2809,12 @@ class ScrollComponent extends Component {
     this.tw = w * this.scale;
     this.rect.setAttribute("width", w);
   }
-  addComponent(c, render=(el)=>el.createSVGElement()) {
+  addComponent(c, render = (el) => el.createSVGElement()) {
     this.content.addComponent(c, render);
   }
 }
 class SVGCheckbox extends Component {
-  constructor(x, y, scale, checked=false, clickCallback=()=>{}) {
+  constructor(x, y, scale, checked = false, clickCallback = () => { }) {
     super(x, y, 18, 18, scale);
 
     this.checked = checked;
@@ -2932,12 +2988,12 @@ class RasterBackground {
         x: e.clientX,
         y: e.clientY
       };
-    }, () => {}, (e) => {
+    }, () => { }, (e) => {
       // mouseup
       this.dragging = false;
       this.mouseStartPos = { x: 0, y: 0 };
     });
-    this.interactions.initListeners(window, () => {}, (e) => {
+    this.interactions.initListeners(window, () => { }, (e) => {
       // mousemove on windows to prevent glitching when noving mouse over other elements
       if (!this.dragging) return;
       let xDiff = e.clientX - this.mouseStartPos.x;
@@ -2945,7 +3001,7 @@ class RasterBackground {
       this.bgPos.x += xDiff;
       this.bgPos.y += yDiff;
       this.pan(xDiff, yDiff, e.movementX, e.movementY);
-    }, () => {})
+    }, () => { })
   }
   createDots() {
     this.distance = 35; //this.baseDist * this.zoom;
@@ -3150,7 +3206,7 @@ class SVGEngine {
     return this.element;
   }
   set renderElement(i) {
-    console.warn("Don't do that! [SVGEngine.renderElement is readonly] trying to set to '" + i +"'");
+    console.warn("Don't do that! [SVGEngine.renderElement is readonly] trying to set to '" + i + "'");
   }
   toggleConnectorType() {
     this.connTypeToggle = 1 - this.connTypeToggle;
@@ -3192,7 +3248,7 @@ class SVGEngine {
 
     return { x: left, y: top };
   }
-  static createShadowFilter(dx=3, dy=3, x="-50%", y="-50%", deviation=3) {
+  static createShadowFilter(dx = 3, dy = 3, x = "-50%", y = "-50%", deviation = 3) {
     const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
 
     const filter = document.createElementNS("http://www.w3.org/2000/svg", "filter");
@@ -3241,14 +3297,14 @@ class SVGEngine {
       c.component.setScale(this.scale);
     });
   }
-  addComponent(c, render=(el)=>el.createSVGElement()) {
-    this.components.push({ component: c, render: render});
+  addComponent(c, render = (el) => el.createSVGElement()) {
+    this.components.push({ component: c, render: render });
     if (c.attachEngine) c.attachEngine(this);
     this.element.appendChild(render(c));
   }
 }
 class RoundedTriangle {
-  constructor(borderRadius=2, width) {
+  constructor(borderRadius = 2, width) {
     this.width = width;
     this.height = (width / 2) * Math.sqrt(3);
     this.cd = borderRadius; // corner distance, distance from the corner of the triangle where the curve starts
@@ -3314,7 +3370,7 @@ class RoundedTriangleComponent extends RoundedTriangle {
 
     if (this.color) path.setAttribute("fill", this.color);
     if (this.stroke) path.setAttribute("stroke", this.stroke);
-    if (this.rot || this.scale) path.setAttribute("transform", ((this.scale) ? "scale(" + this.scale + ") " : " ") + ((this.rot) ? "rotate(" + this.rot + "," + (this.width/2) + "," + (this.height/2) + ")" : ""));
+    if (this.rot || this.scale) path.setAttribute("transform", ((this.scale) ? "scale(" + this.scale + ") " : " ") + ((this.rot) ? "rotate(" + this.rot + "," + (this.width / 2) + "," + (this.height / 2) + ")" : ""));
   }
   createSVGElement() {
     return this.container;
@@ -3384,6 +3440,8 @@ engine.addComponent(log);
 
 const read = new VariableWriteNode(200, 400, 1, engine, "bezier");
 engine.addComponent(read);
+
+engine.addComponent(condition.createPreview());
 
 class NodeRegistry {
   constructor() {
@@ -3476,12 +3534,13 @@ class UiBlockShelf {
     return this;
   }
 
-  spawn(id, x=10, y=10) {
+  spawn(id, x = 10, y = 10) {
     let node = new (this.registry.getNodeClass(id))(x, y, this.engine.scale, this.engine, "bezier");
     this.engine.addComponent(node);
   }
 
   attachEngine(engine) {
+    // TODO: visual previews of the blocks
     this.engine = engine;
 
     this.container.setAttribute("width", this.engine.width); // change on attachEngine
@@ -3496,8 +3555,8 @@ class UiBlockShelf {
     const ui = this;
     this.registry.classes.forEach((config, i) => {
       let y = (18 * i + 2 * i) * this.engine.scale;
-      let select = new SVGSelect(0, y, this.engine.width * 0.2 - 5, 1, () => {}, function(_data) {
-        let sel = this;
+      let select = new SVGSelect(0, y, this.engine.width * 0.2 - 5, 1, () => { }, function(_data) {
+        let sel = this; // anonymous function scoped inside SVGSelect
         sel.renderContainer = ui.body.container;
         sel.moveToTop();
       });
@@ -3564,7 +3623,11 @@ reg.addNode({
   class: Node.Class.DEVICEINFO,
   name: "Screen Size"
 });
-
+reg.addNode({
+  nodeClass: VariableWriteNode,
+  class: Node.Class.BASIC,
+  name: "Write Variable"
+});
 
 const shelf = new UiBlockShelf(reg);
 engine.addUI(shelf);
