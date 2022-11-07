@@ -1189,8 +1189,8 @@ class Node extends Component {
     }
     return super.createSVGElement();
   }
-  createPreview() {
-    return new NodePreview(0, 0, this.scale, this.class);
+  createPreview(x=0, y=0) {
+    return new NodePreview(x, y, this.scale, this);
   }
   embedBody(container, node) { // Embed all the connectors and similar in another element
     this.embedContainer = container;
@@ -1477,15 +1477,15 @@ class Node extends Component {
   }
 }
 class NodePreview extends Component {
-  constructor(x, y, scale, nodeClass) {
+  constructor(x, y, scale, node) {
     const measures = {
       header: {
-        height: 33 / 4,
+        height: 28 / 4,
         radius: 2
       },
       background: {
         width: 200 / 4,
-        height: 45 / 4,
+        height: 76 / 4,
         radius: 2
       }
     }
@@ -1498,7 +1498,8 @@ class NodePreview extends Component {
       header: "#8a5794"
     }
 
-    this.class = nodeClass;
+    this.node = node;
+    this.class = node.class;
 
     this.bgRect = new Rectangle(0, 1, this.tw, this.th, true, measures.background.radius);
     this.bgRect.setColor(this.colors.background);
@@ -1518,6 +1519,47 @@ class NodePreview extends Component {
     this.hRect.setClipPath(this.clip.id);
     this.elements.push({ element: this.clip, render: (el) => el.element });
     this.elements.push({ element: this.hRect });
+
+    this.body = new Viewport(0, measures.header.height + 6);
+    this.elements.push({ element: this.body });
+
+    console.log(node.plugs, node.sockets, node.inputSockets, node.outputPlugs);
+
+    const spacing = 8;
+
+    node.sockets.forEach((_socket, i) => {
+      let indicator = new Circle(0, spacing * i, 2.5, false);
+      indicator.setColor("white");
+      this.body.addComponent(indicator);
+    });
+    node.inputSockets.forEach((socket, i) => {
+      let offset = Math.max(spacing * node.sockets.length, spacing * node.plugs.length) - 3.5; // remove 3.5 pixels as there too much spacing
+      let indicator = new Rectangle(-2.75, offset + 4.5 * i, 5.5 * this.scale, 3, true, 2);
+      indicator.setColor(InputSocketComponent.ColorMapping[socket.type])
+      this.body.addComponent(indicator);
+    });
+
+    node.plugs.forEach((_plug, i) => {
+      let indicator = new Circle(measures.background.width, spacing * i, 2.5, false);
+      indicator.setColor("white");
+      this.body.addComponent(indicator);
+    });
+    node.outputPlugs.forEach((plug, i) => {
+      let offset = Math.max(spacing * node.sockets.length, spacing * node.plugs.length) - 3.5; // remove 3.5 pixels as there too much spacing
+      let indicator = new Rectangle(-2.75 + measures.background.width, offset + 4.5 * i, 5.5 * this.scale, 3, true, 2);
+      indicator.setColor(OutputPlugComponent.ColorMapping[plug.type])
+      this.body.addComponent(indicator);
+    });
+
+    let offset = measures.header.height + 3.5;
+    let flowOff = Math.max(offset + node.sockets.length * spacing, offset + node.plugs.length * spacing); // offset caused by flow sockets/inputs
+    console.log(flowOff);
+
+    let sockets = flowOff + node.inputSockets.length * 4.5; // add a bit of spacing
+    let plugs = flowOff + node.outputPlugs.length * 4.5;
+    let corrected = Math.max(sockets, plugs, measures.background.height) + 2.5;
+    console.log(measures, plugs, sockets);
+    this.bgRect.setHeight(corrected);
 
     return this;
   }
@@ -3438,10 +3480,10 @@ engine.addComponent(add);
 const log = new ConsoleLogNode(100, 100, 1, engine, "bezier");
 engine.addComponent(log);
 
-const read = new VariableWriteNode(200, 400, 1, engine, "bezier");
-engine.addComponent(read);
+const write = new VariableWriteNode(200, 400, 1, engine, "bezier");
+engine.addComponent(write);
 
-engine.addComponent(condition.createPreview());
+engine.addComponent(condition.createPreview(350, 300));
 
 class NodeRegistry {
   constructor() {
