@@ -60,8 +60,12 @@ class Component {
       this.x = this.ox;
       this.y = this.oy;
     }*/
-    this.container.style.height = "100%";
-    this.container.style.width = "100%";
+    this.bbox = this.container.getBBox();
+    // only apply the viewBox attribute when the element is rendered
+    if (this.container.parentElement) this.container.setAttribute("viewBox", "0 0 " + this.bbox.width + " " + this.bbox.height)
+    this.container.setAttribute("width", this.bbox.width * this.scale);
+    this.container.setAttribute("height", this.bbox.height * this.scale);
+    this.container.setAttribute("preserveAspectRatio", "xMinYMin slice");
 
     this.container.setAttribute("x", this.x);
     this.container.setAttribute("y", this.y);
@@ -86,7 +90,7 @@ class Component {
       this.renderContainer.insertBefore(this.container, connectorGroup);
       return true;
     } else {
-      this.renderContainer.appendChild(this.container);
+      ((this.renderContainer.querySelector(".nodes")) ? this.renderContainer.querySelector(".nodes") : this.renderContainer).appendChild(this.container);
       return true;
     }
   }
@@ -129,8 +133,77 @@ class Component {
   attachEngine(e) {
     this.parentSVGEngine = e;
   }
-}
 
+  /**
+   *  @typedef {Object} Position
+   *  @property {number} x - The X position of the top left corner
+   *  @property {number} y - The Y position of the top left corner
+   */
+
+  /**
+   * @description Move the component relative to its current position.
+   *
+   * @param  {number} deltaX The amount of
+   * @param  {number} deltaY description
+   * @return {Position}        The new position
+   */
+  move(deltaX, deltaY) {
+    if ((!deltaX && deltaX !== 0) || ((!deltaY && deltaY !== 0))) throw "Invalid parameters! [" + this.constructor.name + ".move(deltaX, deltaY)]";
+    this.x += deltaX;
+    this.y += deltaY;
+    this.updateAttributes();
+    return { x: this.x, y: this.y };
+  }
+
+  /**
+   * @description Scales the component and its children.
+   *
+   * @deprecated Broken in many ways, use .setViewboxScale() instead.
+   * @param  {number} newScale The new scale of the component
+   * @return {number}          The new scale.
+   */
+  setComponentScale(newScale) {
+    if (!newScale) throw "Scale cannot be empty! [" + this.constructor.name + ".setComponentScale()]";
+    const ratio = newScale / this.scale; // how everything has to be scaled
+    if (Number.isNaN(ratio)) throw "Ratio has to be a number. [" + this.constructor.name + ".setComponentScale()]";
+    this.elements.forEach((e) => {
+      const el = (Array.isArray(e.element)) ? e.element : [e.element];
+      el.forEach(e => {
+        if (e.setComponentScale) e.setComponentScale(((e.scale) ? e.scale : this.scale) * ratio);
+        if (!e.move) return;
+        let dX = e.x * ratio - e.x;
+        let dY = e.y * ratio - e.y;
+        e.move(dX, dY);
+      });
+    });
+    this.scale = newScale;
+    this.updateAttributes();
+    return this.scale;
+  }
+
+  /**
+   * @description Change the scale of the element using the viewBox property.
+   *
+   * @param  {number} newScale The new scale of the element
+   * @return {void}
+   */
+  setViewboxScale(newScale) {
+    this.scale = newScale;
+    this.updateAttributes();
+  }
+}
+class Transform {
+  static vXAnchor = {
+    CENTER: "Mid",
+    LEFT: "Min",
+    RIGHT: "Max"
+  }
+  static vYAnchor = {
+    MIDDLE: "Mid",
+    TOP: "Min",
+    BOTTOM: "Max"
+  }
+}
 /**
  * @class
  * @classdesc The viewport object is one of the basic objects beside, circle,
@@ -143,14 +216,19 @@ class Viewport {
    *
    * @param  {number} x The x position of the viewport in the parent.
    * @param  {number} y The y position of the viewport in the parent.
+   * @param  {number} scale=1 This value is only used for scaling
    * @returns {Viewport}
    * @constructor
    */
-  constructor(x, y) {
+  constructor(x, y, scale=1) {
     this.x = x;
     this.y = y;
+    this.scale = scale;
 
     this.components = [];
+
+    this.vxa = Transform.vXAnchor.LEFT;
+    this.vya = Transform.vYAnchor.TOP;
 
     this.container = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     this.container.style.overflow = "visible";
@@ -176,8 +254,50 @@ class Viewport {
   setScale(s) {
     this.scale = s;
     this.components.forEach(c => {
-      c.setScale(s);
+      if (c.setScale) c.setScale(s);
     });
+  }
+  setComponentScale(newScale) {
+    if (!newScale) throw "Scale cannot be empty! [" + this.constructor.name + ".setComponentScale()]";
+    const ratio = newScale / this.scale; // how everything has to be scaled
+    if (Number.isNaN(ratio)) throw "Ratio has to be a number. [" + this.constructor.name + ".setComponentScale()]";
+    this.components.forEach((e) => {
+      const el = (Array.isArray(e.element)) ? e.element : [e.element];
+      el.forEach(e => {
+        if (e.setComponentScale) e.setComponentScale(((e.scale) ? e.scale : this.scale) * ratio);
+        if (!e.move) return;
+        let dX = e.x * ratio - e.x;
+        let dY = e.y * ratio - e.y;
+        e.move(dX, dY);
+      });
+    });
+    this.scale = newScale;
+    this.updateAttributes();
+    return this.scale;
+  }
+  /**
+   * @description Change the scale of the element using the viewBox property.
+   *
+   * @param  {number} newScale The new scale of the element
+   * @return {void}
+   */
+  setViewboxScale(newScale) {
+    this.scale = newScale;
+    this.updateAttributes();
+  }
+  /**
+   * @description Move the component relative to its current position.
+   *
+   * @param  {number} deltaX The amount of
+   * @param  {number} deltaY description
+   * @return {Position}        The new position
+   */
+  move(deltaX, deltaY) {
+    if ((!deltaX && deltaX !== 0) || ((!deltaY && deltaY !== 0))) throw "Invalid parameters! [" + this.contuctor.name + ".move(deltaX, deltaY)]";
+    this.x += deltaX;
+    this.y += deltaY;
+    this.updateAttributes();
+    return { x: this.x, y: this.y };
   }
 
   /**
@@ -193,6 +313,12 @@ class Viewport {
     this.components.push({ element: c, render: render });
   }
   updateAttributes() {
+    this.bbox = this.container.getBBox();
+    if (this.container.parentElement) this.container.setAttribute("viewBox", "0 0 " + this.bbox.width + " " + this.bbox.height)
+    this.container.setAttribute("width", this.bbox.width * this.scale);
+    this.container.setAttribute("height", this.bbox.height * this.scale);
+    this.container.setAttribute("preserveAspectRatio", "x" + this.vxa + "Y" + this.vya + " slice");
+
     this.container.setAttribute("x", this.x);
     this.container.setAttribute("y", this.y);
   }
@@ -207,6 +333,11 @@ class Viewport {
       }
     });
     return this.container;
+  }
+  setViewboxAnchor(vXAnchor=Transform.vXAnchor.LEFT, vYAnchor=Transform.vYAnchor.TOP) {
+    this.vxa = vXAnchor;
+    this.vya = vYAnchor;
+    this.updateAttributes();
   }
 }
 class Group { // somehow the equivalent to the <g> element
@@ -412,7 +543,7 @@ class OutputPlugComponent extends Component {
 
     this.color = OutputPlugComponent.ColorMapping[type];
 
-    this.oCircle = new Circle(20 * this.scale, 0, 8 * this.scale, true); // the white circle
+    this.oCircle = new Circle(20 * this.scale, 0, 8 * this.scale, true, this.scale); // the white circle
     this.oCircle.setColor(this.color);
     this.initConnector();
     this.elements.push({ element: this.oCircle, render: (el) => el.createSVGElement() });
@@ -800,7 +931,7 @@ class InputSocketComponent extends Component {
 
     this.color = InputSocketComponent.ColorMapping[type];
 
-    this.cCircle = new Circle(0, 0, 8 * this.scale, true);
+    this.cCircle = new Circle(0, 0, 8 * this.scale, true, this.scale);
     this.cCircle.setColor(this.color);
     this.elements.push({ element: this.cCircle, render: (el) => el.createSVGElement() });
     this.defRadius = 8 * this.scale; // the default radius, used for connectors
@@ -1528,7 +1659,7 @@ class NodePreview extends Component {
     const spacing = 8;
 
     node.sockets.forEach((_socket, i) => {
-      let indicator = new Circle(0, spacing * i, 2.5, false);
+      let indicator = new Circle(0, spacing * i, 2.5, false, this.scale);
       indicator.setColor("white");
       this.body.addComponent(indicator);
     });
@@ -1540,7 +1671,7 @@ class NodePreview extends Component {
     });
 
     node.plugs.forEach((_plug, i) => {
-      let indicator = new Circle(measures.background.width, spacing * i, 2.5, false);
+      let indicator = new Circle(measures.background.width, spacing * i, 2.5, false, this.scale);
       indicator.setColor("white");
       this.body.addComponent(indicator);
     });
@@ -2029,7 +2160,7 @@ class BezierConnector extends Connector {
 
     this.color = color;
 
-    this.sCircle = new Circle(0, 0, 6 * this.scale, false); // the circle connected to the output plug
+    this.sCircle = new Circle(0, 0, 6 * this.scale, false, this.scale); // the circle connected to the output plug
     this.sCircle.setColor(this.color);
     this.elements.push({ element: this.sCircle, render: (el) => el.createSVGElement() });
     super.attachStartListener(this.sCircle.container);
@@ -2056,7 +2187,7 @@ class BezierConnector extends Connector {
     });
     this.group.addComponent(this.line);
 
-    this.eCircle = new Circle(end.x, end.y, 6 * this.scale, false);
+    this.eCircle = new Circle(end.x, end.y, 6 * this.scale, false, this.scale);
     this.eCircle.setColor(this.color);
     this.group.addComponent(this.eCircle);
   }
@@ -2089,7 +2220,7 @@ class LineConnector extends Connector {
 
     this.color = color;
 
-    this.sCircle = new Circle(0, 0, 6 * this.scale, false); // the circle connected to the output plug
+    this.sCircle = new Circle(0, 0, 6 * this.scale, false, this.scale); // the circle connected to the output plug
     this.sCircle.setColor(this.color);
     this.elements.push({ element: this.sCircle, render: (el) => el.createSVGElement() });
     super.attachStartListener(this.sCircle.container);
@@ -2102,7 +2233,7 @@ class LineConnector extends Connector {
     this.line.setColor(this.color);
     this.group.addComponent(this.line);
 
-    this.eCircle = new Circle(this.currMousePos.x - this.x, this.currMousePos.y - this.y, 6 * this.scale, false);
+    this.eCircle = new Circle(this.currMousePos.x - this.x, this.currMousePos.y - this.y, 6 * this.scale, false, this.scale);
     this.eCircle.setColor(this.color);
     this.group.addComponent(this.eCircle);
 
@@ -2261,6 +2392,17 @@ class Text {
     this.scale = scale
     this.updateAttributes();
   }
+  setComponentScale(newScale) {
+    this.setScale(newScale);
+  }
+
+  move(deltaX, deltaY) {
+    if ((!deltaX && deltaX !== 0) || ((!deltaY && deltaY !== 0))) throw "Invalid parameters! [" + this.constructor.name + ".move(deltaX, deltaY)]";
+    this.x += deltaX;
+    this.y += deltaY;
+    this.updateAttributes();
+    return { x: this.x, y: this.y };
+  }
   /**
    * @description Set the text content of this element.
    *
@@ -2408,7 +2550,7 @@ class PathBuilder {
   }
 }
 class Circle {
-  constructor(x, y, radius, cornerCoords) {
+  constructor(x, y, radius, cornerCoords, scale=1) {
     this.x = (cornerCoords) ? x + radius : x;
     this.y = (cornerCoords) ? y + radius : y;
     this.ox = x; // original x and y
@@ -2416,6 +2558,7 @@ class Circle {
     this.r = radius;
     this.cornerCoords = cornerCoords;
     this.isComponent = true;
+    this.scale = scale;
 
     this.container = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     this.updateAttributes();
@@ -2468,6 +2611,15 @@ class Circle {
     if (this.stroke) circle.setAttribute("stroke", this.stroke);
     if (this.strokeWidth) circle.setAttribute("stroke-width", this.strokeWidth);
     if (this.color) circle.setAttribute("fill", this.color);
+  }
+  setComponentScale(newScale) {
+    const ratio = newScale / this.scale;
+    this.r = this.r * ratio;
+    if (this.cornercoords) {
+      this.x = this.ox + this.r;
+      this.y = this.oy + this.r;
+    }
+    this.updateAttributes();
   }
   createSVGElement() {
     return this.container;
@@ -2587,7 +2739,7 @@ class Rectangle {
     rect.setAttribute("width", this.width);
     rect.setAttribute("height", this.height + this.rx);
   }
-  setScale(scale) {
+  setComponentScale(scale) {
     this.scale = scale;
     this.height = this.oheight * scale; // oheight, owidth, etc to use the original values
     this.width = this.owidth * scale;
@@ -2920,7 +3072,6 @@ class SVGCheckbox extends Component {
     this.builder.lineTo(this.tw / 2 - 1 * this.scale, this.th - (3 * this.scale));
     this.builder.lineTo(this.tw - (3 * this.scale), 3 * this.scale);
     this.mark.path = this.builder.build();
-    this.bgRect.setScale(this.scale);
   }
 }
 class HTMLCheckbox {
@@ -3047,7 +3198,7 @@ class RasterBackground {
   }
   createDots() {
     this.distance = 35; //this.baseDist * this.zoom;
-    this.rad = this.dotRad * this.zoom;
+    this.rad = this.dotRad //* this.zoom; don't scale this as this is done by the svg engine
 
     this.dots = [];
     this.columns = Math.ceil(this.width / this.distance);
@@ -3069,8 +3220,14 @@ class RasterBackground {
     this.container.append(...this.dots.map(el => el.createSVGElement()));
     return this.container;
   }
-  setScale() {
-
+  dispatchEvent(type, data) {
+    return this[type + "Event"](data);
+  }
+  scaleEvent(data) {
+    this.zoom = data;
+    this.width /= data;
+    this.height /= data;
+    this.createSVGElement();
   }
 }
 
@@ -3087,6 +3244,8 @@ class SVGEngine {
     this.element.style.userSelect = "none";
     this.element.id = "ULVS-Engine_" + (new Date()).getTime();
     document.body.appendChild(this.element);
+
+    this.scale = 1;
 
     // separated container for connector elements so they stay on top
     /*this.connectorContainer = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -3108,9 +3267,18 @@ class SVGEngine {
       ]
     }
 
+    this.body = new Viewport(0, 0, this.scale);
+    this.body.container.classList.add("nodes");
+    this.body.setViewboxAnchor(Transform.vXAnchor.CENTER, Transform.vYAnchor.MIDDLE);
+    this.element.appendChild(this.body.createSVGElement());
+
     this.components = [];
     this.interfaces = [];
     this.scale = 1;
+    this.maxZoom = {
+      in: 1.7,
+      out: 0.4
+    }
 
     window.uid = () => {
       return Date.now().toString(36) + Math.random().toString(36).substr(2);
@@ -3324,25 +3492,32 @@ class SVGEngine {
     return { element: defs, id: id };
   }
   setBackground(bgrd) {
+    this.background = bgrd;
     bgrd.attach(this);
-    this.element.appendChild(bgrd.createSVGElement());
+    this.body.container.prepend(bgrd.createSVGElement());
   }
-  zoomOut() {
-    this.scale -= 0.2;
-    this.components.forEach((c) => {
-      c.component.setScale(this.scale);
-    });
+  zoomOut(delta=0.2) {
+    if (this.scale - delta < this.maxZoom.out) return;
+    this.scale -= delta;
+    this.zoom();
   }
-  zoomIn() {
-    this.scale += 0.2;
-    this.components.forEach((c) => {
-      c.component.setScale(this.scale);
-    });
+  zoomIn(delta=0.2) {
+    if (this.scale - delta > this.maxZoom.in) return;
+    this.scale += delta;
+    this.zoom();
+  }
+  zoom() {
+    this.body.setViewboxScale(this.scale);
+    if (!this.background) return this.scale;
+    this.background.bg.setWidth(this.background.width * (1 / this.scale));
+    this.background.bg.setHeight(this.background.height * (1 / this.scale));
+    this.background.dispatchEvent("scale", this.scale);
+    return this.scale;
   }
   addComponent(c, render = (el) => el.createSVGElement()) {
     this.components.push({ component: c, render: render });
     if (c.attachEngine) c.attachEngine(this);
-    this.element.appendChild(render(c));
+    this.body.container.appendChild(render(c));
   }
 }
 class RoundedTriangle {
@@ -3678,12 +3853,12 @@ console.log(shelf);
 document.body.style.overflow = "hidden";
 
 window.addEventListener("mousewheel", (e) => {
-  /*e.preventDefault();
+  e.preventDefault();
   if (e.deltaY > 0) {
     // zoom out
-    engine.zoomOut();
+    engine.zoomOut(0.2);
   } else {
     // zoom in
-    engine.zoomIn();
-  }*/
+    engine.zoomIn(0.2);
+  }
 });
