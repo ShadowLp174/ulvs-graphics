@@ -9,13 +9,13 @@
 				"outputs":[
 
 				],
-				"uuid":"l9v5lzeenbzvt63wrjb"
+				"uuid":"lbgce0r7tpaclro2owe"
 			},
 			{
 				"id":"OpenVS-Base-Console-Log",
 				"inputs":[
 					{
-						"inputSource":"l9v5lzehfqxqqz3ln6f",
+						"inputSource":"lbgce0r0vkzeyyysb9",
 						"type":"any",
 						"dataConstant":true,
 						"dataValue":null,
@@ -25,7 +25,7 @@
 				"outputs":[
 
 				],
-				"uuid":"l9v5lzetwec5j4xv1p"
+				"uuid":"lbgce0rgprrf0qm4ccm"
 			}
 		]
 	],
@@ -43,7 +43,7 @@
 					"inputSource":null,
 					"type":"num",
 					"dataConstant":true,
-					"dataValue":"22",
+					"dataValue":"3",
 					"portId":null
 				}
 			],
@@ -52,8 +52,8 @@
 					"type":"num"
 				}
 			],
-			"uuid":"l9v5lzehfqxqqz3ln6f",
-			"id":"OpenVS-Base-Basic-Math"
+			"uuid":"lbgce0r0vkzeyyysb9",
+			"id":"OpenVS-Base-Basic-Add"
 		}
 	]
 }

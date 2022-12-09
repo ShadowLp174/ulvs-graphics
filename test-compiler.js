@@ -45,6 +45,19 @@ const nodeMap = {
   }
 }
 
+var converToFlowComponent = (addComponent) => {
+  const ret = {};
+  for (key in addComponent) {
+    if (key == "os") {
+      ret.outputs = addComponent[key];
+    } else if (key == "is") {
+      ret.inputs = addComponent[key];
+    } else {
+      ret[key] = addComponent[key];
+    }
+  }
+  return ret;
+}
 const compileSpec = (spec) => {
   var snippets = [];
   var functions = [];
@@ -63,24 +76,32 @@ const compileSpec = (spec) => {
         if (snippet.branches) {
           snippet.script = snippet.script.replace(/\$branch/g, "$nl" + nLevel + "branch");
         }
+        const inputScripts = [];
         if (component.inputs) {
           if (component.inputs.length > 0) {
             const is = [];
             component.inputs.forEach(input => {
               if (!input.inputSource) {
                 if (!input.dataConstant) return;
+                console.log("fill", input);
                 is.push(input.dataValue);
                 return;
               }
               let source = nodeMap[spec.additional.find(a => a.uuid == input.inputSource).id];
-              if (!source) return console.warn("Somethings weird lol");
+              if (!source) return console.warn("Something's weird lol");
               if (source.function) {
                 functions.push(source);
               } else {
-                var traceSource = (elem) => {
-                  // TODO: finish
+                sourceComponent = converToFlowComponent(spec.additional.find(a => a.uuid == input.inputSource));
+                console.log("source", sourceComponent);
+                let traced = {
+                  additional: spec.additional,
+                  flow: [[sourceComponent]] // flow array contains the flow, which is an array of components
                 }
-                // TODO: Trace additional sources; math add for example
+                console.log("trace", traced);
+                let inp = compileSpec(traced);
+                console.log(inp);
+                inputScripts.push(inp);
               }
               is.push(source.output[input.portId])
             });
@@ -88,6 +109,7 @@ const compileSpec = (spec) => {
             snippet.input.forEach((i, index) => {
               snippet.script = snippet.script.replace("$" + i, is[index]);
             });
+            snippet.script = inputScripts.join("\n") + "\n" + snippet.script;
           }
         }
         sns.push(snippet);
