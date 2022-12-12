@@ -367,7 +367,7 @@ class Group { // somehow the equivalent to the <g> element
   }
 }
 class UserInteractionManager {
-  constructor() {
+  constructor() { // an instance of this is stored in the window object. See SVGEngine
     this.listeners = [];
 
     return this;
@@ -527,7 +527,7 @@ class OutputPlugComponent extends Component {
     this.type = type; // the type of the plug
     this.node = node; // the node the plug is attached to
     this.connected = false;
-    this.interactions = new UserInteractionManager(); // user interactions
+    this.interactions = window.userInteractionManager; // user interactions
     this.label = label;
 
     this.minConDist = 50; // the minimum distance to snap
@@ -2024,7 +2024,7 @@ class NodeDragAttachment extends Attachment {
     this.mouseStartPos = {}; // the mouse position when you start dragging to calc the offset
     this.mouseElemOffset = {}; // offset of the mouse position to the element
 
-    this.interactions = new UserInteractionManager();
+    this.interactions = window.userInteractionManager;
 
     return this;
   }
@@ -3133,7 +3133,7 @@ class RasterBackground {
     this.width = width;
     this.height = height;
     this.zoom = zoom;
-    this.interactions = new UserInteractionManager();
+    this.interactions = window.userInteractionManager;
 
     this.container = document.createElementNS("http://www.w3.org/2000/svg", "g");
 
@@ -3289,6 +3289,16 @@ class SVGEngine {
 
     this.connTypeToggle = 1;
 
+    if (!window.userInteractionManager) {
+      Object.defineProperty(window, "userInteractionManager", {
+        get: function() {
+          if (this.openVS.readyIManager) return this.openVS.readyIManager;
+          this.openVS.readyIManager = new UserInteractionManager();
+          return this.openVS.readyIManager;
+        }
+      });
+    }
+
     this.generateStyles();
 
     return this;
@@ -3317,7 +3327,7 @@ class SVGEngine {
       // TODO: Stop recursion on visual loop
       let n = f[f.length - 1];
 
-      // create new branch for every **connected** plug
+      // create new branch for every **connected** flow plug (if there is more than one)
       const sub = []; // new subBranches
       if (n.plugs.filter(p => p.connected.length != 0).length == 0) return f;
 
