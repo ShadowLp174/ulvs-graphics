@@ -151,4 +151,4 @@ const compileSpec = (spec) => {
 let script = compileSpec(specification);
 
 console.log("\n\ncompiled", script);
-fs.writeFileSync(__dirname + "\\compiled.js", script);
+fs.writeFileSync(__dirname + "\\compiled.js", "// (unformatted) compiled spec from test-spec.json\n" + script);

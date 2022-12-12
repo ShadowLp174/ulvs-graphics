@@ -3342,6 +3342,16 @@ class SVGEngine {
       flow.push(follow([s])); // create the basic flow order
     });
 
+    var traceDataSource = (component) => {
+      let found = [component];
+      component.inputSockets.filter(i => i.connected).forEach(i => {
+        found.push(...traceDataSource(this.components.find(c => {
+          return c.component.id == i.con.plug.node.id;
+        }).component));
+      });
+      return found;
+    }
+
     const additional = [];
     var mapComponent = (fc) => {
       if (!fc.inputSockets) fc.inputSockets = [];
@@ -3351,6 +3361,10 @@ class SVGEngine {
             return c.component.id == i.con.plug.node.id
           })[0].component;
           if (!dataSource) console.warn("This is not right.");
+          let depencies = traceDataSource(dataSource);
+          depencies.forEach(d => {
+            if (additional.findIndex(e => e.id == d.id) == -1) additional.push(d);
+          })
           if (additional.findIndex(e => e.id == dataSource.id) == -1) additional.push(dataSource);
         }
         const pid = (i.connected) ? i.con.plug.node.outputPlugs.findIndex(p => p == i.con.plug) : null;

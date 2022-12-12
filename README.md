@@ -36,7 +36,7 @@ As the compiler currently uses node, you'll have to have NodeJS
 installed. Run `node test-compiler.js` and the resulting JS code
 should pop up inside a file called `compiled.js`.
 
-*Note: The compiler is just a side project until the graphics are ready, meaning it might not work. An API and documentation for it are part of the final ULVS*
+*Note: The compiler is just a side project until the graphics are ready, meaning it might not work. An API (to make creation of new language compilers easier) and documentation for it are part of the final ULVS*
 
 ## TODOs
 
