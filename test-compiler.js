@@ -16,6 +16,18 @@ const nodeMap = {
     branches: true,
     branchCount: 2
   },
+  "Connector-Branch-Split": { // TODO: implement priorities
+    script: function(data) {
+      let s = "";
+      let count = data.component.branchCount;
+      for (let i = 0; i < count; i++) {
+        s += "$branch" + i;
+      }
+      this.branchCount = 2;
+      return s;
+    },
+    branches: true
+  },
   "OpenVS-Base-DInfo-Mobile": {
     function: true,
     script: `function OVSBIsMobile() {
@@ -63,7 +75,7 @@ const compileSpec = (spec) => {
   var functions = [];
   spec.flow.forEach(f => {
     var processFlow = (flow, sns, nLevel=0) => { // nLevel == how deep is this iteration nested
-      flow.forEach(component => {
+      flow.forEach((component, _i) => {
         if (component.id == "OVS-Branch") {
           component.branches = component.branches.map(b => {
             return processFlow(b,[], (nLevel + 1));
@@ -71,7 +83,11 @@ const compileSpec = (spec) => {
           component.nestedLevelId = nLevel;
           return sns.push(component);
         };
-        let snippet = JSON.parse(JSON.stringify(nodeMap[component.id]));
+        // TODO: find better way of deep copying an object/write utility for it
+        let snippet = Object.assign({}, nodeMap[component.id]); // WARNING: only performs a partial copy, nested objects will not be cloned!!!
+        if (typeof snippet.script == "function") {
+          snippet.script = snippet.script({ object: snippet, component });
+        }
         snippet.nestedLevelId = nLevel;
         if (snippet.branches) {
           snippet.script = snippet.script.replace(/\$branch/g, "$nl" + nLevel + "branch");
@@ -90,7 +106,7 @@ const compileSpec = (spec) => {
               let source = nodeMap[spec.additional.find(a => a.uuid == input.inputSource).id];
               if (!source) return console.warn("Something's weird lol");
               if (source.function) {
-                functions.push(source);
+                if (functions.findIndex(e => e.script == source.script) === -1)functions.push(source);
               } else {
                 sourceComponent = converToFlowComponent(spec.additional.find(a => a.uuid == input.inputSource));
                 console.log("source", sourceComponent);

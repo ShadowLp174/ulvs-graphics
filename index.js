@@ -43,6 +43,22 @@ class Component {
 
     return this;
   }
+  /**
+   * @description Makes the component invisible. Interactions shouldn't be possible anymore.
+   *
+   * @return {void}
+   */
+  hide() {
+    this.container.style.display = "none";
+  }
+  /**
+   * @description Reverts [hide]{@link Component#hide}
+   *
+   * @return {void}
+   */
+  show() {
+    this.container.style.display = "initial";
+  }
 
   /**
    * @description   Updates the attributes of the SVG element in the DOM
@@ -368,15 +384,52 @@ class Group { // somehow the equivalent to the <g> element
 }
 class UserInteractionManager {
   constructor() { // an instance of this is stored in the window object. See SVGEngine
-    this.listeners = [];
+    this.rclick = [];
+
+    window.addEventListener("contextmenu", (e) => {
+      let el = document.elementFromPoint(e.pageX - window.pageXOffset, e.pageY - window.pageYOffset);
+      let cancel = false;
+      this.rclick.filter(o => o.el == el).forEach(o => {
+        if (o.listener) o.listener(e);
+        cancel = o.cctx || cancel;
+      });
+      if (cancel) e.preventDefault(); // cancel context menu
+      if (cancel) return false; // browsers are weird
+    });
 
     return this;
   }
-  initListeners(el, onStart, onMove, onEnd, maxTouches = Number.POSITIVE_INFINITY, reuseTouches = false) { // TODO: fix bugs appearing when using more than one finger
+  cancelCtxMenu(el) {
+    this.rclick.push({ el, listener: null, cctx: true });
+  }
+  rightClickListener(el, l, cancelCtxMenu=false) {
+    this.rclick.push({ el, listener: l, cctx: cancelCtxMenu });
+  }
+  initListeners(el, onStart, onMove, onEnd, rcl=false, maxTouches=Number.POSITIVE_INFINITY, reuseTouches=false) { // TODO: fix bugs appearing when using more than one finger
     // mouse listeners
-    el.addEventListener("mousedown", onStart);
-    el.addEventListener("mousemove", onMove);
-    el.addEventListener("mouseup", onEnd);
+    var isRightClick = (e) => {
+      e = e || window.event;
+      return (e.which == 3) || (e.button == 2);
+      /*if ("which" in e) { // Gecko (Firefox), WebKit (Safari/Chrome) & Opera
+        return e.which == 3;
+      } else if ("button" in e) { // IE, Opera
+        return e.button == 2;
+      }*/
+    }
+    el.addEventListener("mousedown", function(e) {
+      if (!rcl) {return onStart.call(this, e);}
+      if (isRightClick(e)) onStart.call(this, e);
+    });
+    el.addEventListener("mousemove", function(e) {
+      if (!rcl) return onMove.call(this, e);
+      if (isRightClick(e)) onStart.call(this, e);
+    });
+    el.addEventListener("mouseup", function(e) {
+      if (!rcl) return onEnd.call(this, e);
+      if (isRightClick(e)) onEnd.call(this, e);
+    });
+
+    //if (rcl) return; // no right click on touch
 
     // touch implementation
     function prevent(e) {
@@ -1695,6 +1748,45 @@ class NodePreview extends Component {
     return this;
   }
 }
+class MenuItem extends Component {
+  ht = "";
+  title = "";
+  callback = () => {};
+
+  constructor() {
+    super(0, 0, 143, 20, 1);
+
+    return this;
+  }
+  setTitle(t) {
+    this.title = t;
+    return this;
+  }
+  setHoverTitle(t) {
+    this.ht = t;
+    return this;
+  }
+  setCallback(cb) {
+    this.callback = cb;
+    return this;
+  }
+}
+class ContextMenu extends Component {
+  constructor() {
+    super(0, 0, 143, 20, 1);
+
+    this.hide(); // only reveal when right-clicking
+
+    this.items = [];
+    this.body = new ScrollComponent(0, 0, this.width * 5, this.height, this.scale);
+
+    return this;
+  }
+  addItem(i) {
+    this.items.push(i);
+    this.body.addComponent(i);
+  }
+}
 class ConditionNode extends Node {
   constructor(x, y, scale, svgEngine, type = "") {
     super(x, y, scale, svgEngine);
@@ -2046,7 +2138,7 @@ class NodeDragAttachment extends Attachment {
       // mouseup
       this.mouseStartPos = {};
       this.dragging = false;
-    }, 1);
+    }, false, 1);
     this.interactions.initListeners(window, () => { }, (e) => {
       // mousemove
       if (!this.dragging) return;
@@ -3174,6 +3266,7 @@ class RasterBackground {
     });
   }
   initPanning() {
+    this.interactions.cancelCtxMenu(this.container);
     this.interactions.initListeners(this.container, (e) => {
       // mousedown
       this.dragging = true;
@@ -3185,7 +3278,7 @@ class RasterBackground {
       // mouseup
       this.dragging = false;
       this.mouseStartPos = { x: 0, y: 0 };
-    });
+    }, false);
     this.interactions.initListeners(window, () => { }, (e) => {
       // mousemove on windows to prevent glitching when noving mouse over other elements
       if (!this.dragging) return;
@@ -3194,7 +3287,7 @@ class RasterBackground {
       this.bgPos.x += xDiff;
       this.bgPos.y += yDiff;
       this.pan(xDiff, yDiff, e.movementX, e.movementY);
-    }, () => { })
+    }, () => { }, false)
   }
   createDots() {
     this.distance = 35; //this.baseDist * this.zoom;
@@ -3331,15 +3424,27 @@ class SVGEngine {
       const sub = []; // new subBranches
       if (n.plugs.filter(p => p.connected.length != 0).length == 0) return f;
 
-      if (n.plugs.filter(p => p.connected.length != 0).length == 1) {
-        f.push(n.plugs[0].connected[0].connectedTo.node);
+      const branches = [];
+      n.plugs.filter(p => p.connected.length > 0).forEach(plug => {
+        branches.push(...plug.connected);
+      });
+      if (branches.length == 1) {
+        f.push(branches[0].connectedTo.node);
         return follow(f);
       }
 
-      n.plugs.filter(p => p.connected.length > 0).forEach(plug => {
-        // TODO: Implement branch split on multiple connectors
-        sub.push(follow([plug.connected[0].connectedTo.node]));
+      branches.forEach(connected => {
+        sub.push(follow([connected.connectedTo.node]));
       });
+      if (n.nodeIdentifier != "OpenVS-Base-Basic-Condition") {
+        f.push({
+          id: "Connector-Branch-Split",
+          branchCount: sub.length,
+          inputs: [],
+          outputs: [],
+          uuid: "nil"
+        });
+      }
       f.push({
         id: "OVS-Branch",
         branches: sub
@@ -3422,7 +3527,7 @@ class SVGEngine {
             })
           };
         }
-        return m(fc);
+        return (fc.id != "Connector-Branch-Split") ? m(fc) : fc;
       });
     }));
     const a = additional.map(el => {

@@ -9,38 +9,86 @@
         "outputs":[
 
         ],
-        "uuid":"lbkwwmt5ztdpp3f5i2p"
+        "uuid":"lbnqa6t2dnxx942k87"
       },
       {
-        "id":"OpenVS-Base-Console-Log",
+        "id":"Connector-Branch-Split",
+        "branchCount":2,
         "inputs":[
-          {
-            "inputSource":"lbkwwmswgjpbmlkf4r9",
-            "type":"any",
-            "dataConstant":true,
-            "dataValue":null,
-            "portId":0
-          }
+
         ],
         "outputs":[
 
         ],
-        "uuid":"lbkwwmtpyrscl4t68d"
+        "uuid":"nil"
+      },
+      {
+        "id":"OVS-Branch",
+        "branches":[
+          [
+            {
+              "id":"OpenVS-Base-Console-Log",
+              "inputs":[
+                {
+                  "inputSource":"lbnqa6ssvrkpi4ra2sc",
+                  "type":"any",
+                  "dataConstant":true,
+                  "dataValue":null,
+                  "portId":0
+                }
+              ],
+              "outputs":[
+
+              ],
+              "uuid":"lbnqa6te9w4dhusob1"
+            }
+          ],
+          [
+            {
+              "id":"OpenVS-Base-Console-Log",
+              "inputs":[
+                {
+                  "inputSource":"lbnqa6sv1vu35vsmnvv",
+                  "type":"any",
+                  "dataConstant":true,
+                  "dataValue":null,
+                  "portId":0
+                }
+              ],
+              "outputs":[
+
+              ],
+              "uuid":"lbnqaijp7qwn826c9ns"
+            }
+          ]
+        ]
       }
     ]
   ],
   "additional":[
     {
       "is":[
+
+      ],
+      "os":[
         {
-          "inputSource":"lbkwwmt25hnfwggla4h",
+          "type":"bool"
+        }
+      ],
+      "uuid":"lbnqa6ssvrkpi4ra2sc",
+      "id":"OpenVS-Base-DInfo-Mobile"
+    },
+    {
+      "is":[
+        {
+          "inputSource":"lbnqa6t0svhenchozqs",
           "type":"num",
           "dataConstant":false,
           "dataValue":null,
           "portId":0
         },
         {
-          "inputSource":"lbkwwmt25hnfwggla4h",
+          "inputSource":"lbnqa6t0svhenchozqs",
           "type":"num",
           "dataConstant":false,
           "dataValue":null,
@@ -52,7 +100,7 @@
           "type":"num"
         }
       ],
-      "uuid":"lbkwwmswgjpbmlkf4r9",
+      "uuid":"lbnqa6sv1vu35vsmnvv",
       "id":"OpenVS-Base-Basic-Add"
     },
     {
@@ -67,7 +115,7 @@
           "type":"int"
         }
       ],
-      "uuid":"lbkwwmt25hnfwggla4h",
+      "uuid":"lbnqa6t0svhenchozqs",
       "id":"OpenVS-Base-DInfo-SSize"
     }
   ]
