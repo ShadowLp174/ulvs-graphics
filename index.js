@@ -3453,9 +3453,12 @@ class SVGEngine {
     }
 
     const flow = [];
+    console.log(flow);
     starts.forEach(s => {
       flow.push(follow([s])); // create the basic flow order
     });
+
+    console.log(flow);
 
     var traceDataSource = (component) => {
       let found = [component];
@@ -3507,27 +3510,30 @@ class SVGEngine {
     const basic = flow.slice();
     flow.length = 0;
     flow.push(...basic.map(flowBranch => { // convert the complex data to object spec
-      return flowBranch.map(fc => { // fc == flow component
-        var m = (component) => {
-          const d = mapComponent(component);
-          return {
-            id: component.identifier,
-            inputs: d.is,
-            outputs: d.os,
-            uuid: component.id
+      return flowBranch.map(f => { // fc == flow component
+        var mc = (fc) => {
+          var m = (component) => {
+            const d = mapComponent(component);
+            return {
+              id: component.identifier,
+              inputs: d.is,
+              outputs: d.os,
+              uuid: component.id
+            }
           }
+          if (fc.id == "OVS-Branch") {
+            return {
+              id: fc.id,
+              branches: fc.branches.map(branch => {
+                return branch.map(c => {
+                  return mc(c);
+                });
+              })
+            };
+          }
+          return (fc.id != "Connector-Branch-Split") ? m(fc) : fc;
         }
-        if (fc.id == "OVS-Branch") {
-          return {
-            id: fc.id,
-            branches: fc.branches.map(branch => {
-              return branch.map(c => {
-                return m(c);
-              });
-            })
-          };
-        }
-        return (fc.id != "Connector-Branch-Split") ? m(fc) : fc;
+        return mc(f);
       });
     }));
     const a = additional.map(el => {
