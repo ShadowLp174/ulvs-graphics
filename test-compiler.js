@@ -54,6 +54,18 @@ const nodeMap = {
     script: "var additionResult = $in1 + $in2",
     input: ["in1", "in2"],
     output: ["additionResult"]
+  },
+  "OpenVS-Base-Variable-Read": {
+    function: false,
+    script: "$name",
+    output: [ "$#script" ], // values starting with `$#` are system-reserved
+    input: [ "name" ],
+    ignoreSource: true
+  },
+  "OpenVS-Base-Variable-Write": {
+    script: "var $name = '$val';$further",
+    input: [ "name", "val" ],
+    output: []
   }
 }
 
@@ -69,6 +81,15 @@ var converToFlowComponent = (addComponent) => {
     }
   }
   return ret;
+}
+const defaultTypeFormat = {
+  str: "'$value'",
+  default: "$value"
+}
+function formatType(value, type) {
+  const config = specification.typeFormatting || defaultTypeFormat;
+  const t = (!config[type]) ? "default" : type;
+  return config[t].replace(/\$value/g, value);
 }
 const compileSpec = (spec) => {
   var snippets = [];
@@ -109,15 +130,20 @@ const compileSpec = (spec) => {
                 if (functions.findIndex(e => e.script == source.script) === -1)functions.push(source);
               } else {
                 sourceComponent = converToFlowComponent(spec.additional.find(a => a.uuid == input.inputSource));
-                console.log("source", sourceComponent);
+                console.log("source", sourceComponent, source);
                 let traced = {
                   additional: spec.additional,
                   flow: [[sourceComponent]] // flow array contains the flow, which is an array of components
                 }
-                console.log("trace", traced);
                 let inp = compileSpec(traced);
-                console.log(inp);
-                inputScripts.push(inp);
+                console.log("compiled source", inp);
+                if (!source.ignoreSource) {
+                  inputScripts.push(inp);
+                } else {
+                  source.output = source.output.map(e => {
+                    return e.replace(/\$#script/gi, inp)
+                  });
+                }
               }
               is.push(source.output[input.portId])
             });
@@ -135,8 +161,6 @@ const compileSpec = (spec) => {
     snippets = processFlow(f,[]);
   });
 
-  console.log("snippets", snippets, functions);
-
   var script = "";
   functions.forEach(f => {
     script += f.script;
@@ -144,7 +168,6 @@ const compileSpec = (spec) => {
   script += "\n$further";
   var compile = (s, sns) => {
     sns.forEach((snippet, i) => {
-      console.log(snippet, script);
       const last = (i == sns.length - 1);
       if (last && snippet.id != "OVS-Branch") {
         if (snippet.branches == true) {
@@ -162,9 +185,9 @@ const compileSpec = (spec) => {
     return s;
   }
   script = compile(script, snippets).replace(/\$further/g, "");
-  return script;
+  return script.trim();
 }
 let script = compileSpec(specification);
 
-console.log("\n\ncompiled", script);
+console.log("\n\n######### compiled ###########\n\n", script);
 fs.writeFileSync(__dirname + "\\compiled.js", "// (unformatted) compiled spec from test-spec.json\n" + script);

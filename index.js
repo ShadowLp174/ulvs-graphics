@@ -545,12 +545,14 @@ class OutputPlugComponent extends Component {
     connect: "#ffffff",
     num: "#427fbd",
     int: "#427fbd",
+    str: "#daa520",
     any: "transparent"
   }
   static TypeLabel = {
     bool: "BOOL",
     num: "NUM",
     int: "INT",
+    str: "STR",
     any: ""
   }
   static ConnectorColor = {
@@ -558,6 +560,7 @@ class OutputPlugComponent extends Component {
     connect: "#808080",
     num: "#427fbd",
     int: "#427fbd",
+    str: "#daa520",
     any: ""
   }
 
@@ -1820,7 +1823,7 @@ class ConditionNode extends Node {
   }
 }
 class VariableWriteNode extends Node {
-  constructor(x, y, scale, svgEngine, type = "") {
+  constructor(x, y, scale, svgEngine, type="") {
     super(x, y, scale, svgEngine);
 
     this.setId("OpenVS-Base-Variable-Write");
@@ -1828,10 +1831,22 @@ class VariableWriteNode extends Node {
     this.setClass(Node.Class.BASIC);
 
     this.addSocket();
-    this.addPlug("", this.type);
+    this.addPlug("", type);
 
     this.addInputSocket(InputSocketComponent.Type.STRING, "Name");
     this.addInputSocket(InputSocketComponent.Type.STRING, "Value");
+  }
+}
+class VariableReadNode extends Node { // TODO: implement type selection
+  constructor(x, y, scale, svgEngine, type="") {
+    super(x, y, scale, svgEngine);
+
+    this.setId("OpenVS-Base-Variable-Read");
+    this.setName("Read Variable");
+    this.setClass(Node.Class.BASIC);
+
+    this.addInputSocket(InputSocketComponent.Type.STRING, "Name");
+    this.addOutputPlug(OutputPlugComponent.Type.STRING, "Value", type);
   }
 }
 // TODO: Group nodes inside their classes
@@ -3790,8 +3805,8 @@ engine.addComponent(add);
 const log = new ConsoleLogNode(100, 100, 1, engine, "bezier");
 engine.addComponent(log);
 
-const write = new VariableWriteNode(200, 400, 1, engine, "bezier");
-engine.addComponent(write);
+const read = new VariableReadNode(200, 400, 1, engine, "bezier");
+engine.addComponent(read);
 
 engine.addComponent(condition.createPreview(350, 300));
 
@@ -3979,6 +3994,11 @@ reg.addNode({
   nodeClass: VariableWriteNode,
   class: Node.Class.BASIC,
   name: "Write Variable"
+});
+reg.addNode({
+  nodeClass: VariableReadNode,
+  class: Node.Class.BASIC,
+  name: "Read Variable"
 });
 
 const shelf = new UiBlockShelf(reg);
