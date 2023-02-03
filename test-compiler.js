@@ -69,7 +69,7 @@ const nodeMap = {
   }
 }
 
-var converToFlowComponent = (addComponent) => {
+var convertToFlowComponent = (addComponent) => {
   const ret = {};
   for (key in addComponent) {
     if (key == "os") {
@@ -129,7 +129,7 @@ const compileSpec = (spec) => {
               if (source.function) {
                 if (functions.findIndex(e => e.script == source.script) === -1)functions.push(source);
               } else {
-                sourceComponent = converToFlowComponent(spec.additional.find(a => a.uuid == input.inputSource));
+                sourceComponent = convertToFlowComponent(spec.additional.find(a => a.uuid == input.inputSource));
                 console.log("source", sourceComponent, source);
                 let traced = {
                   additional: spec.additional,
