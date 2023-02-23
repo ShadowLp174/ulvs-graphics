@@ -3341,6 +3341,29 @@ class RasterBackground {
 
 /**
  * @class
+ * @classdesc A Button Element
+ * @augments Component
+ */
+class SVGButton extends Component {
+  text = "Button";
+  constructor(x, y, width, height, scale, text) {
+    super(x, y, width, height, scale);
+
+    this.text = text;
+
+    // text color: #808080
+
+    this.bgrd = new Rectangle(x, y, width, height, true);
+    this.bgrd.setColor("#121212");
+    this.bgrd.setStroke({ stroke: "#0f0f0f", width: 1 })
+    this.elements.push({ element: this.bgrd });
+
+    this.text = new Text()
+  }
+}
+
+/**
+ * @class
  * @classdesc The object managing the graphics and components
  */
 class SVGEngine {
@@ -3440,15 +3463,17 @@ class SVGEngine {
       if (n.plugs.filter(p => p.connected.length != 0).length == 0) return f;
 
       const branches = [];
-      n.plugs.filter(p => p.connected.length > 0).forEach(plug => {
+      n.plugs.forEach(plug => {
+        if (plug.connected.length == 0) return branches.push([]);
         branches.push(...plug.connected);
-      });
-      if (branches.length == 1) {
+      })
+      if (branches.length == 1 && !n.forceBranch) {
         f.push(branches[0].connectedTo.node);
         return follow(f);
       }
 
       branches.forEach(connected => {
+        if (connected.length == 0) return sub.push(connected);
         sub.push(follow([connected.connectedTo.node]));
       });
       if (n.nodeIdentifier != "OpenVS-Base-Basic-Condition") {
@@ -3540,7 +3565,7 @@ class SVGEngine {
             return {
               id: fc.id,
               branches: fc.branches.map(branch => {
-                return branch.map(c => {
+                return (!branch) ? branch : branch.map(c => {
                   return mc(c);
                 });
               })
@@ -3581,7 +3606,7 @@ class SVGEngine {
 
     this.style.innerHTML = "@font-face {\n";
     this.style.innerHTML += "  font-family: LibreFranklin_" + this.element.id + ";\n";
-    this.style.innerHTML += "  src: url('https://carroted.github.io/ulvs-graphics/assets/LibreFranklin-VariableFont_wght.ttf');\n";
+    this.style.innerHTML += "  src: url('./assets/LibreFranklin-VariableFont_wght.ttf');\n";
     this.style.innerHTML += "}\n";
 
     this.style.innerHTML += "#" + this.element.id + " * {\n";
@@ -4006,6 +4031,13 @@ engine.addUI(shelf);
 console.log(shelf);
 
 document.body.style.overflow = "hidden";
+
+const compiler = new Worker("worker.js");
+compiler.onmessage = (e) => console.log(e.data);
+
+function compile() {
+  compiler.postMessage(engine.generateProgramSpec());
+}
 
 window.addEventListener("mousewheel", (e) => {
   e.preventDefault();
