@@ -993,7 +993,8 @@ class InputSocketComponent extends Component {
     this.defRadius = 8 * this.scale; // the default radius, used for connectors
 
     this.con; // the connector
-    this.conCallback = null, this.deconCallback = null;;
+    this.conCallback = null, this.deconCallback = null;
+    this.changeCBs = [];
     this.dataConstant = true;
     this.storedData = null; // initiated on initType
     this.phantomTypes = []; // only important if type ANY; see Connector.typesCompatible
@@ -1034,6 +1035,16 @@ class InputSocketComponent extends Component {
    */
   setDisconnectionCallback(cb) {
     this.deconCallback = cb;
+  }
+
+  /**
+   * @description Add a listener to the onValueChange event
+   *
+   * @param  {function} cb The callback. The passed parameter contains a .prevent() method that cancel the event like the .preventDefault method
+   * @return {void}
+   */
+  onValueChange(cb) {
+    this.changeCBs.push(cb);
   }
 
   /**
@@ -1090,6 +1101,10 @@ class InputSocketComponent extends Component {
       case InputSocketComponent.Type.NUMBER:
       case InputSocketComponent.Type.INT:
         return new SVGInput(21 * this.scale, 0, 50, 1, (data) => {
+          // TODO: implement e.prevent() method
+          this.changeCBs.forEach(cb => {
+            cb.call(this, {prevent: () => {}, oldValue: this.storedData, newValue: data});
+          });
           this.storedData = data;
         });
       case InputSocketComponent.Type.BOOLEAN:
@@ -1804,6 +1819,8 @@ class ConditionNode extends Node {
     // data inputs
     this.addInputSocket(InputSocketComponent.Type.BOOLEAN, "Condition", type);
 
+    this.forceBranch = true;
+
     this.state = null;
 
     return this;
@@ -1833,7 +1850,9 @@ class VariableWriteNode extends Node {
     this.addSocket();
     this.addPlug("", type);
 
-    this.addInputSocket(InputSocketComponent.Type.STRING, "Name");
+    const name = this.addInputSocket(InputSocketComponent.Type.STRING, "Name");
+    name.setConnectionCallback((e) => {
+    });
     this.addInputSocket(InputSocketComponent.Type.STRING, "Value");
   }
 }
@@ -1845,8 +1864,12 @@ class VariableReadNode extends Node { // TODO: implement type selection
     this.setName("Read Variable");
     this.setClass(Node.Class.BASIC);
 
-    this.addInputSocket(InputSocketComponent.Type.STRING, "Name");
-    this.addOutputPlug(OutputPlugComponent.Type.STRING, "Value", type);
+    const name = this.addInputSocket(InputSocketComponent.Type.STRING, "Name");
+    name.onValueChange((e) => {
+      const input = svgEngine.getVariable(e.value);
+      this.value.setType(input.type || OutputPlugComponent.Type.ANY);
+    });
+    this.value = this.addOutputPlug(OutputPlugComponent.Type.ANY, "Value", type); // TODO: implement variable registry registry
   }
 }
 // TODO: Group nodes inside their classes
@@ -3270,9 +3293,9 @@ class RasterBackground {
     let dotDiffX = xDiff % this.distance; // the difference a single dot has to move
     let dotDiffY = yDiff % this.distance;
 
-    this.dots.forEach((dot) => {
+    /*this.dots.forEach((dot) => {
       dot.setPosition({ x: dot.ox + dotDiffX, y: dot.oy + dotDiffY });
-    });
+    });*/
 
     if (!this.engine) return;
     this.engine.components.forEach(d => {
@@ -3312,6 +3335,7 @@ class RasterBackground {
     this.columns = Math.ceil(this.width / this.distance);
     this.rows = Math.ceil(this.height / this.distance);
 
+    return;
     for (let i = 0; i < this.columns; i++) {
       for (let j = 0; j < this.rows; j++) {
         const circle = new Circle(this.distance * (i), this.distance * (j), this.rad, false);
@@ -3367,6 +3391,7 @@ class SVGButton extends Component {
  * @classdesc The object managing the graphics and components
  */
 class SVGEngine {
+  variables = new Map()
   constructor() {
     this.element = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     this.element.setAttribute("height", window.innerHeight);
@@ -3440,6 +3465,12 @@ class SVGEngine {
     this.interfaces.push(interf);
   }
 
+  registerVariable(name) {
+    if (this.variables.includes(name)) return false;
+    this.variables.push(name);
+    return true;
+  }
+
   /**
    * @description Calling this function will generate an object containing all the
    * instructions a compiler should need. The data can be stringified for storage.
@@ -3466,7 +3497,7 @@ class SVGEngine {
       n.plugs.forEach(plug => {
         if (plug.connected.length == 0) return branches.push([]);
         branches.push(...plug.connected);
-      })
+      });
       if (branches.length == 1 && !n.forceBranch) {
         f.push(branches[0].connectedTo.node);
         return follow(f);
@@ -3589,9 +3620,6 @@ class SVGEngine {
   }
   get renderElement() {
     return this.element;
-  }
-  set renderElement(i) {
-    console.warn("Don't do that! [SVGEngine.renderElement is readonly] trying to set to '" + i + "'");
   }
   toggleConnectorType() {
     this.connTypeToggle = 1 - this.connTypeToggle;
@@ -3926,7 +3954,8 @@ class UiBlockShelf {
     return this;
   }
 
-  spawn(id, x = 10, y = 10) {
+  spawn(id, x, y=10) {
+    x = x || this.tw + 10;
     let node = new (this.registry.getNodeClass(id))(x, y, this.engine.scale, this.engine, "bezier");
     this.engine.addComponent(node);
   }
@@ -3964,6 +3993,7 @@ class UiBlockShelf {
     let classCount = this.registry.classes.length;
     let height = Math.min(18 * this.engine.scale * classCount + ((classCount + 1) * 2), this.engine.height - 20);
     this.bg.setHeight(height);
+    //this.bg.elem.after(this.body.createSVGElement());
     this.container.appendChild(this.body.createSVGElement());
   }
 }

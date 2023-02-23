@@ -1,1 +1,97 @@
-{"flow":[[{"id":"OpenVS-Base-Event-Start","inputs":[],"outputs":[],"uuid":"lbplsnkpyj9au9e3c4k"},{"id":"OpenVS-Base-Variable-Write","inputs":[{"inputSource":null,"type":"str","dataConstant":true,"dataValue":"test","portId":null},{"inputSource":null,"type":"str","dataConstant":true,"dataValue":"hi","portId":null}],"outputs":[],"uuid":"lbplsqmtqns2v46p7u"},{"id":"OpenVS-Base-Console-Log","inputs":[{"inputSource":"lbplsnkyf5xzgmzp7dh","type":"any","dataConstant":true,"dataValue":null,"portId":0}],"outputs":[],"uuid":"lbplsnkwef2c9rrsu4q"}]],"additional":[{"is":[{"inputSource":null,"type":"str","dataConstant":true,"dataValue":"test","portId":null}],"os":[{"type":"str"}],"uuid":"lbplsnkyf5xzgmzp7dh","id":"OpenVS-Base-Variable-Read"}]}
+{
+  "flow":[
+    [
+      {
+        "id":"OpenVS-Base-Event-Start",
+        "inputs":[
+
+        ],
+        "outputs":[
+
+        ],
+        "uuid":"ldoo7vpfa9vp3bycxgr"
+      },
+      {
+        "id":"OpenVS-Base-Basic-Condition",
+        "inputs":[
+          {
+            "inputSource":"ldoo7vp4hm4i92fqmel",
+            "type":"bool",
+            "dataConstant":false,
+            "dataValue":null,
+            "portId":0
+          }
+        ],
+        "outputs":[
+
+        ],
+        "uuid":"ldoo7vowst5jkeo6o2f"
+      },
+      {
+        "id":"OVS-Branch",
+        "branches":[
+          [
+
+          ],
+          [
+            {
+              "id":"OpenVS-Base-Console-Log",
+              "inputs":[
+                {
+                  "inputSource":"ldoo7vp6ml3gztwzihj",
+                  "type":"any",
+                  "dataConstant":true,
+                  "dataValue":null,
+                  "portId":0
+                }
+              ],
+              "outputs":[
+
+              ],
+              "uuid":"ldoo7vpq6cc6xjjxtyi"
+            }
+          ]
+        ]
+      }
+    ]
+  ],
+  "additional":[
+    {
+      "is":[
+
+      ],
+      "os":[
+        {
+          "type":"bool"
+        }
+      ],
+      "uuid":"ldoo7vp4hm4i92fqmel",
+      "id":"OpenVS-Base-DInfo-Mobile"
+    },
+    {
+      "is":[
+        {
+          "inputSource":null,
+          "type":"num",
+          "dataConstant":true,
+          "dataValue":"20",
+          "portId":null
+        },
+        {
+          "inputSource":null,
+          "type":"num",
+          "dataConstant":true,
+          "dataValue":"32",
+          "portId":null
+        }
+      ],
+      "os":[
+        {
+          "type":"num"
+        }
+      ],
+      "uuid":"ldoo7vp6ml3gztwzihj",
+      "id":"OpenVS-Base-Basic-Add"
+    }
+  ]
+}
