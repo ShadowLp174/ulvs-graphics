@@ -791,6 +791,11 @@ class OutputPlugComponent extends Component {
     socket.cCircle.setRadius(10 * socket.scale); // change circle props without changing position
     this.snappingSocket = connectable;
   }
+  connectTo(socket) {
+    this.createConnector({ clientX: socket.x, clientY: socket.y });
+    this.snappingSocket = { socket: socket };
+    this.snap();
+  }
   snap() {
     const socket = this.snappingSocket.socket;
     let p = this.getAbsCoords(socket.cCircle.container);
@@ -803,17 +808,22 @@ class OutputPlugComponent extends Component {
     socket.connected = true;
     socket.connector = this.activeConnector;
     const connector = this.activeConnector;
-    socket.node.addEventListener("move", (_e) => {
+    connector.setMoveListener(socket.node.addEventListener("move", (_e) => {
       if (this.connected.length == 0 || !this.connected) return; // only execute if the node is currently connected
       const pos = this.getAbsCoords(socket.cCircle.container);
       pos.x += socket.cCircle.radius * socket.scale;
       pos.y += socket.cCircle.radius * socket.scale;
       connector.moveTo(pos);
-    });
+    }), socket.node);
     socket.connect(this.activeConnector);
     this.connected.push(this.activeConnector);
     socket.cCircle.setRadius(8 * socket.scale); // reset socket proportions
     this.dragging = false;
+  }
+  createConnector(e) {
+    this.activeConnector = new (ConnectorManager.getConnector(this.styleType))(this, { x: e.clientX, y: e.clientY }, this.getAbsCoords(this.oCircle.container), this.scale, OutputPlugComponent.ConnectorColor[this.type]);
+    this.parentSVGEngine.element.appendChild(this.activeConnector.createSVGElement()); // don't add as a component to prevent "wobbing" while panning
+    this.emit("connector", this.activeConnector);
   }
   initConnector() {
     this.dragging = false;
@@ -821,9 +831,7 @@ class OutputPlugComponent extends Component {
     this.mouseDown = (e) => {
       this.dragging = true;
       this.initSnapping();
-      this.activeConnector = new (ConnectorManager.getConnector(this.styleType))(this, { x: e.clientX, y: e.clientY }, this.getAbsCoords(this.oCircle.container), this.scale, OutputPlugComponent.ConnectorColor[this.type]);
-      this.parentSVGEngine.element.appendChild(this.activeConnector.createSVGElement()); // don't add as a component to prevent "wobbing" while panning
-      this.emit("connector", this.activeConnector);
+      this.createConnector(e);
     }
     this.interactions.initListeners(this.oCircle.container, (e) => {
       if (this.type == OutputPlugComponent.Type.ANY) return;
@@ -1341,6 +1349,11 @@ class Node extends Component {
     return this;
   }
 
+  destroy() {
+    this.container.remove();
+    delete window.openVS.nodes[this.id];
+  }
+
   /**
    * @description Returns an up-to-date copy of the container of the current parent SVG engine.
    * @type {HTMLElement}
@@ -1424,6 +1437,18 @@ class Node extends Component {
    */
   addEventListener(event, cb) {
     return (this.embedNode.eventElem || this.eventElem).addEventListener(event, cb);
+  }
+
+  /**
+   * @description Remove a given listener from the node.
+   *
+   * @param  {(string|"move")} event  The event of the listener that should be removed
+   * @param  {object} listener The listener (returned by {@link Node#addEventListener})
+   * @param  {...object} opts  Other options you might want to pass to the eventTarget; see {@link https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/removeEventListener#parameters}
+   * @return {void}
+   */
+  removeEventListener(event, listener, ...opts) {
+    return (this.embedNode.eventElem || this.eventElem).removeEventListener(event, listener, ...opts);
   }
   emit(event) {
     const e = this.events[event];
@@ -2234,6 +2259,8 @@ class Connector extends Component {
     this.absCoords = absPlugCoords;
     this.id = uid();
     this.startPos = { x: this.x, y: this.y };
+    this.moveListener = null;
+    this.moveTarget = null;
 
     return this;
   }
@@ -2245,6 +2272,9 @@ class Connector extends Component {
   }
   destroy() {
     this.container.remove();
+    const idx = window.openVS.connectors.findIndex(e => e.id == this.id);
+    if (idx == -1) return;
+    window.openVS.connectors.splice(idx, 1);
     return;
   }
   moveTo(mousePos) {
@@ -2279,9 +2309,14 @@ class Connector extends Component {
       if (!this.connectedTo) return console.log("Weird stuff happening here. <Connector>(Line 1612)");
       this.connectedTo.connected = false;
       this.connectedTo.disconnect(this);
+      this.moveTarget.removeEventListener("move", this.moveListener);
       this.connectedTo = { id: null };
       this.connectedNode = null;
     }, () => { }, () => { });
+  }
+  setMoveListener(l, t) {
+    this.moveListener = l;
+    this.moveTarget = t;
   }
 }
 class BezierConnector extends Connector {
@@ -3369,6 +3404,7 @@ class RasterBackground {
  */
 class SVGEngine {
   variables = new Map()
+  registry = null;
   constructor() {
     this.element = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     this.element.setAttribute("height", window.innerHeight);
@@ -3437,6 +3473,10 @@ class SVGEngine {
     return this;
   }
 
+  setNodeRegistry(r) {
+    this.registry = r;
+  }
+
   addUI(interf) {
     interf.attachEngine(this);
     this.interfaces.push(interf);
@@ -3446,6 +3486,33 @@ class SVGEngine {
     if (this.variables.includes(name)) return false;
     this.variables.push(name);
     return true;
+  }
+
+  exportProgram() {
+    const mapFlow = (start) => {
+      console.log(start);
+      if (start.plugs.filter(p => p.connected.length > 0).length == 0) return [start];
+
+      let components = start.plugs.filter(p => p.connected.length > 0).map(pc => {
+        return pc.connected.map(c => c.connectedTo.node);
+      }).flat(1);
+
+      return [start, ...components];
+    }
+    console.log(this.components);
+    this.components.filter(e => e.component.nodeIdentifier == "OpenVS-Base-Event-Start").forEach(s => {
+      console.log(mapFlow(s.component));
+    });
+  }
+  loadProgram() {
+
+  }
+  clearWorkspace() {
+    for (let id in window.openVS.nodes) {
+      window.openVS.nodes[id].destroy();
+    }
+    let cons = window.openVS.connectors.slice();
+    cons.forEach(c => c.destroy());
   }
 
   /**
@@ -4035,6 +4102,7 @@ reg.addNode({
 
 const shelf = new UiBlockShelf(reg);
 engine.addUI(shelf);
+engine.setNodeRegistry(reg);
 console.log(shelf);
 
 document.body.style.overflow = "hidden";
@@ -4049,3 +4117,9 @@ window.addEventListener("mousewheel", (e) => {
     engine.zoomIn(0.2);
   }
 });
+
+start.plugs[0].connectTo(condition.sockets[0]);
+
+engine.exportProgram();
+
+//module.exports = engine;

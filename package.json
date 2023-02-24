@@ -18,6 +18,7 @@
   },
   "homepage": "https://github.com/carroted/ulvs-graphics#readme",
   "dependencies": {
-    "better-docs": "^2.7.2"
+    "better-docs": "^2.7.2",
+    "taffydb": "^2.7.3"
   }
 }
