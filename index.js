@@ -3400,6 +3400,29 @@ class RasterBackground {
 
 /**
  * @class
+ * @classdesc A Button Element
+ * @augments Component
+ */
+class SVGButton extends Component {
+  text = "Button";
+  constructor(x, y, width, height, scale, text) {
+    super(x, y, width, height, scale);
+
+    this.text = text;
+
+    // text color: #808080
+
+    this.bgrd = new Rectangle(x, y, width, height, true);
+    this.bgrd.setColor("#121212");
+    this.bgrd.setStroke({ stroke: "#0f0f0f", width: 1 })
+    this.elements.push({ element: this.bgrd });
+
+    this.text = new Text()
+  }
+}
+
+/**
+ * @class
  * @classdesc The object managing the graphics and components
  */
 class SVGEngine {
@@ -3678,7 +3701,7 @@ class SVGEngine {
 
     this.style.innerHTML = "@font-face {\n";
     this.style.innerHTML += "  font-family: LibreFranklin_" + this.element.id + ";\n";
-    this.style.innerHTML += "  src: url('https://carroted.github.io/ulvs-graphics/assets/LibreFranklin-VariableFont_wght.ttf');\n";
+    this.style.innerHTML += "  src: url('./assets/LibreFranklin-VariableFont_wght.ttf');\n";
     this.style.innerHTML += "}\n";
 
     this.style.innerHTML += "#" + this.element.id + " * {\n";
@@ -4106,6 +4129,13 @@ engine.setNodeRegistry(reg);
 console.log(shelf);
 
 document.body.style.overflow = "hidden";
+
+const compiler = new Worker("worker.js");
+compiler.onmessage = (e) => console.log(e.data);
+
+function compile() {
+  compiler.postMessage(engine.generateProgramSpec());
+}
 
 window.addEventListener("mousewheel", (e) => {
   e.preventDefault();
