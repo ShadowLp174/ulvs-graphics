@@ -3517,15 +3517,39 @@ class SVGEngine {
       if (start.plugs.filter(p => p.connected.length > 0).length == 0) return [start];
 
       let components = start.plugs.filter(p => p.connected.length > 0).map(pc => {
-        return pc.connected.map(c => c.connectedTo.node);
+        return pc.connected.map(c => mapFlow(c.connectedTo.node)).flat(1);
       }).flat(1);
 
       return [start, ...components];
     }
     console.log(this.components);
+    var flows = [];
+    var additional = [];
+    // collect involved nodes
     this.components.filter(e => e.component.nodeIdentifier == "OpenVS-Base-Event-Start").forEach(s => {
-      console.log(mapFlow(s.component));
+      const flow = mapFlow(s.component)
+
+      flow.forEach(c => {
+        additional.push(...c.inputSockets.filter(i => i.connected).map(i => i.con.plug.node))
+      });
+
+      flows.push(flow);
     });
+
+    for (let i = 0, off = 0; i < additional.length; i++) { // remove duplicates from data source pool
+      if (additional.filter(a => a.id == additional[i + off].id).length != 1) {
+        additional.splice(i + off, 1);
+        off -= 1;
+      }
+    }
+
+    flows.forEach(f => {
+      f.forEach(c => {
+        c.inputSockets.filter(s => s.connected)
+      });
+    })
+    console.log("flows", flows);
+    console.log("additional", additional);
   }
   loadProgram() {
 
@@ -3617,8 +3641,8 @@ class SVGEngine {
             return c.component.id == i.con.plug.node.id
           })[0].component;
           if (!dataSource) console.warn("This is not right.");
-          let depencies = traceDataSource(dataSource);
-          depencies.forEach(d => {
+          let dependencies = traceDataSource(dataSource);
+          dependencies.forEach(d => {
             if (additional.findIndex(e => e.id == d.id) == -1) additional.push(d);
           })
           if (additional.findIndex(e => e.id == dataSource.id) == -1) additional.push(dataSource);
@@ -3904,17 +3928,11 @@ engine.addComponent(condition);
 const condition1 = new ConditionNode(704, 125, 1, engine, "bezier");
 engine.addComponent(condition1);
 
-const device = new IsMobileNode(55, 224, 1, engine, "bezier");
-engine.addComponent(device);
-
 const addition = new AdditionNode(361, 381, 1, engine, "bezier");
 engine.addComponent(addition);
 
 const screen = new ScreenSizeNode(55, 347, 1, engine, "bezier");
 engine.addComponent(screen);
-
-const start = new StartEventNode(56, 56, 1, engine, "bezier");
-engine.addComponent(start);
 
 const math = new MathNode(100, 100, 1, engine, "bezier");
 engine.addComponent(math);
@@ -3928,7 +3946,13 @@ engine.addComponent(log);
 const read = new VariableReadNode(200, 400, 1, engine, "bezier");
 engine.addComponent(read);
 
-engine.addComponent(condition.createPreview(350, 300));
+const device = new IsMobileNode(55, 224, 1, engine, "bezier");
+engine.addComponent(device);
+
+const start = new StartEventNode(56, 56, 1, engine, "bezier");
+engine.addComponent(start);
+
+// engine.addComponent(condition.createPreview(350, 300));
 
 class NodeRegistry {
   constructor() {
@@ -4149,6 +4173,11 @@ window.addEventListener("mousewheel", (e) => {
 });
 
 start.plugs[0].connectTo(condition.sockets[0]);
+condition.plugs[1].connectTo(condition1.sockets[0]);
+condition.plugs[0].connectTo(log.sockets[0]);
+device.outputPlugs[0].connectTo(condition.inputSockets[0]);
+device.outputPlugs[0].connectTo(condition1.inputSockets[0]);
+device.outputPlugs[0].connectTo(log.inputSockets[0])
 
 engine.exportProgram();
 
