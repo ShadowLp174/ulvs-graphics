@@ -3543,11 +3543,22 @@ class SVGEngine {
       }
     }
 
-    flows.forEach(f => {
-      f.forEach(c => {
-        c.inputSockets.filter(s => s.connected)
+    flows.map(f => {
+      return f.map(c => {
+        c.flowPlugs = Array(c.plugs.length);
+        c.plugs.forEach((p, i) => {
+          c.flowPlugs[i] = p.connected.map(con => {
+            return {
+              connectorId: con.id,
+              conTo: con.connectedTo.node.id,
+            }
+          });
+        });
+        return c;
       });
-    })
+    });
+    
+    
     console.log("flows", flows);
     console.log("additional", additional);
   }
