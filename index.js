@@ -3552,19 +3552,92 @@ class SVGEngine {
             return {
               connectorId: con.id,
               conTo: con.connectedTo.node.id,
+              targetPort: con.connectedTo.node.sockets.findIndex(s => s.id == con.connectedTo.id),
             }
           });
         });
         return c;
       });
     });
-    
-    
+
+    console.log(additional);
+
+    // map data connections
+    additional = additional.map(n => {
+      n.dataPlugs = Array(n.outputPlugs.length);
+      n.outputPlugs.forEach((p, i) => {
+        n.dataPlugs[i] = p.connected.map(con => {
+          return {
+            conTo: con.connectedTo.node.id,
+            targetPort: con.connectedTo.node.inputSockets.findIndex(s => s.id == con.connectedTo.id),
+            connectorId: con.id
+          }
+        });
+      });
+      return n;
+    });
+
+    const simplify = (node) => {
+      return {
+        x: node.x,
+        y: node.y,
+        scale: node.scale,
+        flowPlugs: node.flowPlugs,
+        dataPlugs: node.dataPlugs,
+        identifier: node.nodeIdentifier,
+        node: node.constructor.name,
+        uid: node.id
+      }
+    }
+    flows = flows.map(f => f.map(n => simplify(n)));
+    additional = additional.map(n => simplify(n));
+
     console.log("flows", flows);
     console.log("additional", additional);
-  }
-  loadProgram() {
 
+    return {
+      flows,
+      additional
+    };
+  }
+  importProgram(exported) {
+    const nodes = new Map();
+    const spawnNode = (n) => {
+      if (!this.registry.getNodeClass(n.node)) return;
+      const node = new (this.registry.getNodeClass(n.node))(n.x, n.y, n.scale, this, "bezier");
+      nodes.set(n.uid, node);
+      this.addComponent(node);
+    }
+    exported.flows.forEach(f => {
+      f.forEach(n => {
+        spawnNode(n);
+      });
+      f.forEach(n => {
+        if (!nodes.has(n.uid)) return;
+        const node = nodes.get(n.uid);
+        n.flowPlugs.forEach((p, i) => {
+          p.forEach(c => {
+            if (!nodes.has(c.conTo)) return;
+            const target = nodes.get(c.conTo);
+            node.plugs[i].connectTo(target.sockets[c.targetPort]);
+          });
+        });
+      });
+    });
+    exported.additional.forEach(n => {
+      spawnNode(n);
+    });
+    exported.additional.forEach(n => {
+      if (!nodes.has(n.uid)) return;
+      const node = nodes.get(n.uid);
+      n.dataPlugs.forEach((p, i) => {
+        p.forEach(c => {
+          if (!nodes.has(c.conTo)) return;
+          const target = nodes.get(c.conTo);
+          node.outputPlugs[i].connectTo(target.inputSockets[c.targetPort]);
+        });
+      });
+    });
   }
   clearWorkspace() {
     for (let id in window.openVS.nodes) {
@@ -4124,6 +4197,11 @@ reg.addClassConfig({
 });
 
 reg.addNode({
+  nodeClass: StartEventNode,
+  class: Node.Class.EVENT,
+  name: "Start"
+});
+reg.addNode({
   nodeClass: ConditionNode,
   class: Node.Class.BASIC,
   name: "Condition"
@@ -4184,13 +4262,8 @@ window.addEventListener("mousewheel", (e) => {
   }
 });
 
-start.plugs[0].connectTo(condition.sockets[0]);
-condition.plugs[1].connectTo(condition1.sockets[0]);
-condition.plugs[0].connectTo(log.sockets[0]);
-device.outputPlugs[0].connectTo(condition.inputSockets[0]);
-device.outputPlugs[0].connectTo(condition1.inputSockets[0]);
-device.outputPlugs[0].connectTo(log.inputSockets[0])
+const program = '{"flows":[[{"x":56,"y":56,"scale":1,"flowPlugs":[[{"connectorId":"lf8j514895ccyxorw1q","conTo":"lf8j5135lekpxyf5hao","targetPort":0}]],"identifier":"OpenVS-Base-Event-Start","node":"StartEventNode","uid":"lf8j513y0y38vjvvlyk"},{"x":375,"y":124,"scale":1,"flowPlugs":[[{"connectorId":"lf8j51498n3zllr7rnx","conTo":"lf8j513rrf4fhix3zzd","targetPort":0}],[{"connectorId":"lf8j5149bpdwajfk7f","conTo":"lf8j5139tt5k3bvzmad","targetPort":0}]],"identifier":"OpenVS-Base-Basic-Condition","node":"ConditionNode","uid":"lf8j5135lekpxyf5hao"},{"x":100,"y":100,"scale":1,"flowPlugs":[[]],"identifier":"OpenVS-Base-Console-Log","node":"ConsoleLogNode","uid":"lf8j513rrf4fhix3zzd"},{"x":704,"y":125,"scale":1,"flowPlugs":[[],[]],"identifier":"OpenVS-Base-Basic-Condition","node":"ConditionNode","uid":"lf8j5139tt5k3bvzmad"}]],"additional":[{"x":55,"y":224,"scale":1,"dataPlugs":[[{"conTo":"lf8j5135lekpxyf5hao","targetPort":0,"connectorId":"lf8j514axb4irw0h43"},{"conTo":"lf8j5139tt5k3bvzmad","targetPort":0,"connectorId":"lf8j514bqw5cp9zh88"},{"conTo":"lf8j513rrf4fhix3zzd","targetPort":0,"connectorId":"lf8j514cpt1rropukz"}]],"identifier":"OpenVS-Base-DInfo-Mobile","node":"IsMobileNode","uid":"lf8j513w3u5z42ai32d"}]}';
 
-engine.exportProgram();
+engine.importProgram(JSON.parse(program));
 
 //module.exports = engine;
