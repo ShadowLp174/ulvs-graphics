@@ -3,5 +3,6 @@ function OVSBIsMobile() {
       return typeof screen.orientation !== 'undefined';
     }
 (function() {
-if (OVSBIsMobile()) {} else {var additionResult = 20 + 32
-console.log(additionResult);}})()
+if (OVSBIsMobile()) {
+console.log(OVSBIsMobile());} else {
+if (OVSBIsMobile()) {} else {}}})()

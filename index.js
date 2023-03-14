@@ -3543,6 +3543,7 @@ class SVGEngine {
       }
     }
 
+    // map flow connections
     flows.map(f => {
       return f.map(c => {
         c.flowPlugs = Array(c.plugs.length);

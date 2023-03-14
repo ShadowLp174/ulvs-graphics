@@ -36,6 +36,16 @@ As the compiler currently uses node, you'll have to have NodeJS
 installed. Run `node test-compiler.js` and the resulting JS code
 should pop up inside a file called `compiled.js`.
 
+### Update
+
+You can still use the method specified above but
+there is an interface between the frontend and the compiler now.
+To compile the current workspace open the dev tools and run
+`compile()`. There will be a few messages while the worker
+compiles the code async. Wait for the message containing
+the property `done: true`. The `script` property of that
+object contains the compiled code.
+
 *Note: The compiler is just a side project until the graphics are ready, meaning it might not work. An API (to make creation of new language compilers easier) and documentation for it are part of the final ULVS*
 
 ## TODOs

@@ -39,5 +39,5 @@ function require(url){
 const compile = require("compiler.js");
 
 onmessage = (e) => {
-  postMessage({ script: compile(e.data), spec: e.data });
+  postMessage({ script: compile(e.data), spec: e.data, done: true });
 }
