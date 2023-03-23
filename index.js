@@ -3347,7 +3347,7 @@ class RasterBackground {
     this.interactions.cancelCtxMenu(this.container.children[0]);
     this.interactions.initListeners(this.container, (e) => {
       // mousedown
-      if (e.button != 2) return;
+      if (e.button || e.button == 0) if (e.button != 2) return;
       this.dragging = true;
       this.mouseStartPos = {
         x: e.clientX,
@@ -3482,7 +3482,7 @@ class SelectionPlugin extends OpenVSPlugin {
       if (!this.selecting) return;
       const currPosX = e.clientX;
       const currPosY = e.clientY;
-      
+
       this.bgrd.setWidth(currPosX - this.mouseStartPos.x);
       this.bgrd.setHeight(currPosY - this.mouseStartPos.y);
     }, () => { }, false);
