@@ -389,7 +389,7 @@ class UserInteractionManager {
     window.addEventListener("contextmenu", (e) => {
       let el = document.elementFromPoint(e.pageX - window.pageXOffset, e.pageY - window.pageYOffset);
       let cancel = false;
-      this.rclick.filter(o => o.el == el).forEach(o => {
+      this.rclick.filter(o => o.el == el || o.el == "global").forEach(o => {
         if (o.listener) o.listener(e);
         cancel = o.cctx || cancel;
       });
@@ -3339,9 +3339,10 @@ class RasterBackground {
     });
   }
   initPanning() {
-    this.interactions.cancelCtxMenu(this.container);
+    this.interactions.cancelCtxMenu(this.container.children[0]);
     this.interactions.initListeners(this.container, (e) => {
       // mousedown
+      if (e.button != 2) return;
       this.dragging = true;
       this.mouseStartPos = {
         x: e.clientX,
@@ -3382,9 +3383,9 @@ class RasterBackground {
   createSVGElement() {
     this.container.innerHTML = "";
     this.createDots();
-    this.initPanning();
     this.container.append(this.bg.createSVGElement());
     this.container.append(...this.dots.map(el => el.createSVGElement()));
+    this.initPanning();
     return this.container;
   }
   dispatchEvent(type, data) {
