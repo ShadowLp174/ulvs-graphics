@@ -2807,6 +2807,7 @@ class Rectangle {
     this.ry = (radius !== 0) ? radius : 0.3;
 
     this.shadow = null;
+    this.visible = true;
 
     this.eventElem = document.createElement("span");
     this.clickEvent = new Event("click");
@@ -2815,6 +2816,10 @@ class Rectangle {
     this.elem = rect;
 
     return this;
+  }
+  setVisible(visible) {
+    this.visible = visible;
+    this.elem.style.display = (visible) ? "block" : "none";
   }
   setPosition(pos) {
     this.x = pos.x;
@@ -3422,6 +3427,68 @@ class SVGButton extends Component {
   }
 }
 
+class OpenVSPlugin extends Component {
+  engine = null;
+  constructor(x, y, width=0, height=0, scale=1) {
+    super(x, y, width, height, scale);
+  }
+  attach(engine) {
+    // this.setScale(engine.scale);
+    this.engine = engine;
+    this.engine.addComponent(this);
+  }
+}
+class SelectionPlugin extends OpenVSPlugin {
+  constructor() {
+    super(90, 120);
+
+    this.bgrd = new Rectangle(0, 0, 2, 2, true, 2.5);
+    this.bgrd.setColor("rgba(37, 150, 190, 0.6)");
+    this.bgrd.setStroke({ color: "#1a6c89", width: 1 });
+    this.bgrd.setVisible(false);
+    this.elements.push({ element: this.bgrd });
+
+    this.selecting = false;
+    this.mouseStartPos = {
+      x: 0,
+      y: 0
+    }
+
+    this.interactions = window.userInteractionManager;
+  }
+  attach(...args) {
+    super.attach(...args);
+    this.interactions.initListeners(this.engine.element, (e) => {
+      console.log(e);
+      if (e.button != 0) return;
+      console.log(this);
+      this.renderContainer = this.engine.element;
+      this.moveToTop();
+      this.selecting = true;
+      this.mouseStartPos = {
+        x: e.clientX,
+        y: e.clientY
+      };
+      this.bgrd.setVisible(true);
+      this.bgrd.setPosition({ x: this.mouseStartPos.x, y: this.mouseStartPos.y })
+    }, () => { }, (e) => {
+      this.selecting = false;
+      this.mouseStartPos = { x: 0, y: 0 };
+      this.bgrd.setVisible(false);
+      this.bgrd.setWidth(2);
+      this.bgrd.setHeight(2);
+    }, false);
+    this.interactions.initListeners(window, () => { }, (e) => {
+      if (!this.selecting) return;
+      const currPosX = e.clientX;
+      const currPosY = e.clientY;
+      
+      this.bgrd.setWidth(currPosX - this.mouseStartPos.x);
+      this.bgrd.setHeight(currPosY - this.mouseStartPos.y);
+    }, () => { }, false);
+  }
+}
+
 /**
  * @class
  * @classdesc The object managing the graphics and components
@@ -3429,6 +3496,7 @@ class SVGButton extends Component {
 class SVGEngine {
   variables = new Map()
   registry = null;
+  plugins = [];
   constructor() {
     this.element = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     this.element.setAttribute("height", window.innerHeight);
@@ -3496,7 +3564,10 @@ class SVGEngine {
 
     return this;
   }
-
+  addPlugin(plugin) {
+    this.plugins.push(plugin);
+    plugin.attach(this);
+  }
   setNodeRegistry(r) {
     this.registry = r;
   }
@@ -4253,18 +4324,21 @@ function compile() {
 }
 
 window.addEventListener("mousewheel", (e) => {
-  e.preventDefault();
+  // disabled cause not working
+  /*e.preventDefault();
   if (e.deltaY > 0) {
     // zoom out
     engine.zoomOut(0.2);
   } else {
     // zoom in
     engine.zoomIn(0.2);
-  }
+  }*/
 });
 
 const program = '{"flows":[[{"x":56,"y":56,"scale":1,"flowPlugs":[[{"connectorId":"lf8j514895ccyxorw1q","conTo":"lf8j5135lekpxyf5hao","targetPort":0}]],"identifier":"OpenVS-Base-Event-Start","node":"StartEventNode","uid":"lf8j513y0y38vjvvlyk"},{"x":375,"y":124,"scale":1,"flowPlugs":[[{"connectorId":"lf8j51498n3zllr7rnx","conTo":"lf8j513rrf4fhix3zzd","targetPort":0}],[{"connectorId":"lf8j5149bpdwajfk7f","conTo":"lf8j5139tt5k3bvzmad","targetPort":0}]],"identifier":"OpenVS-Base-Basic-Condition","node":"ConditionNode","uid":"lf8j5135lekpxyf5hao"},{"x":100,"y":100,"scale":1,"flowPlugs":[[]],"identifier":"OpenVS-Base-Console-Log","node":"ConsoleLogNode","uid":"lf8j513rrf4fhix3zzd"},{"x":704,"y":125,"scale":1,"flowPlugs":[[],[]],"identifier":"OpenVS-Base-Basic-Condition","node":"ConditionNode","uid":"lf8j5139tt5k3bvzmad"}]],"additional":[{"x":55,"y":224,"scale":1,"dataPlugs":[[{"conTo":"lf8j5135lekpxyf5hao","targetPort":0,"connectorId":"lf8j514axb4irw0h43"},{"conTo":"lf8j5139tt5k3bvzmad","targetPort":0,"connectorId":"lf8j514bqw5cp9zh88"},{"conTo":"lf8j513rrf4fhix3zzd","targetPort":0,"connectorId":"lf8j514cpt1rropukz"}]],"identifier":"OpenVS-Base-DInfo-Mobile","node":"IsMobileNode","uid":"lf8j513w3u5z42ai32d"}]}';
 
 engine.importProgram(JSON.parse(program));
+
+engine.addPlugin(new SelectionPlugin());
 
 //module.exports = engine;
