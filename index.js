@@ -92,6 +92,28 @@ class Component {
     });
   }
 
+  outline() {
+    /*
+    <filter id="inset" x="-50%" y="-50%" width="200%" height="200%">
+      <feFlood flood-color="white" result="outside-color"></feFlood>
+      <feMorphology in="SourceAlpha" operator="dilate" radius="1"></feMorphology>
+      <feComposite in="outside-color" operator="in" result="outside-stroke"></feComposite>
+
+      <feFlood flood-color="white" result="inside-color"></feFlood>
+      <feComposite in2="SourceAlpha" operator="in" result="inside-stroke"></feComposite>
+
+      <feMorphology in="SourceAlpha" radius="2"></feMorphology>
+      <feComposite in="SourceGraphic" operator="in" result="fill-area"></feComposite>
+
+      <feMerge>
+        <feMergeNode in="outside-stroke"></feMergeNode>
+        <feMergeNode in="inside-stroke"></feMergeNode>
+        <feMergeNode in="fill-area"></feMergeNode>
+      </feMerge>
+    </filter>
+    */
+  }
+
 
   /**
    * @description      Moves the svg container to the top of the parent. The parent has to be specified earlier by setting .renderContainer to an HTML element
@@ -3470,9 +3492,8 @@ class SelectionPlugin extends OpenVSPlugin {
   attach(...args) {
     super.attach(...args);
     this.interactions.initListeners(this.engine.element, (e) => {
-      console.log(e);
+      if (e.target != this.engine.background.bg.elem) return;
       if (e.button != 0) return;
-      console.log(this);
       this.renderContainer = this.engine.element;
       this.moveToTop();
       this.selecting = true;
@@ -3480,7 +3501,7 @@ class SelectionPlugin extends OpenVSPlugin {
         x: e.clientX,
         y: e.clientY
       };
-      console.log(this.mouseStartPos, e.currentTarget.offsetTop);
+      console.log(this.mouseStartPos);
       this.bgrd.setVisible(true);
       this.bgrd.setPosition({ x: this.mouseStartPos.x, y: this.mouseStartPos.y })
     }, () => { }, (e) => {
