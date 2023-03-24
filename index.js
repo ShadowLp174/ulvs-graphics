@@ -416,15 +416,18 @@ class UserInteractionManager {
         return e.button == 2;
       }*/
     }
-    el.addEventListener("mousedown", function(e) {
+    el.addEventListener("pointerdown", function(e) {
+      if (e.pointerType == "touch") return;
       if (!rcl) {return onStart.call(this, e);}
       if (isRightClick(e)) onStart.call(this, e);
     });
-    el.addEventListener("mousemove", function(e) {
+    el.addEventListener("pointermove", function(e) {
+      if (e.pointerType == "touch") return;
       if (!rcl) return onMove.call(this, e);
       if (isRightClick(e)) onStart.call(this, e);
     });
-    el.addEventListener("mouseup", function(e) {
+    el.addEventListener("pointerup", function(e) {
+      if (e.pointerType == "touch") return;
       if (!rcl) return onEnd.call(this, e);
       if (isRightClick(e)) onEnd.call(this, e);
     });
@@ -3440,7 +3443,7 @@ class OpenVSPlugin extends Component {
 }
 class SelectionPlugin extends OpenVSPlugin {
   constructor() {
-    super(90, 120);
+    super(0, 0);
 
     this.bgrd = new Rectangle(0, 0, 2, 2, true, 2.5);
     this.bgrd.setColor("rgba(37, 150, 190, 0.6)");
