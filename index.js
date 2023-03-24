@@ -3456,6 +3456,14 @@ class SelectionPlugin extends OpenVSPlugin {
 
     this.interactions = window.userInteractionManager;
   }
+  computeDimensions(width, height) { // needed because svg rects can't have negative heights and widths (obviously)
+    return {
+      width: Math.abs(width),
+      height: Math.abs(height),
+      x: (width < 0) ? this.mouseStartPos.x - Math.abs(width) : this.mouseStartPos.x,
+      y: (height < 0) ? this.mouseStartPos.y - Math.abs(height) : this.mouseStartPos.y,
+    }
+  }
   attach(...args) {
     super.attach(...args);
     this.interactions.initListeners(this.engine.element, (e) => {
@@ -3469,6 +3477,7 @@ class SelectionPlugin extends OpenVSPlugin {
         x: e.clientX,
         y: e.clientY
       };
+      console.log(this.mouseStartPos, e.currentTarget.offsetTop);
       this.bgrd.setVisible(true);
       this.bgrd.setPosition({ x: this.mouseStartPos.x, y: this.mouseStartPos.y })
     }, () => { }, (e) => {
@@ -3483,8 +3492,10 @@ class SelectionPlugin extends OpenVSPlugin {
       const currPosX = e.clientX;
       const currPosY = e.clientY;
 
-      this.bgrd.setWidth(currPosX - this.mouseStartPos.x);
-      this.bgrd.setHeight(currPosY - this.mouseStartPos.y);
+      const dims = this.computeDimensions(currPosX - this.mouseStartPos.x, currPosY - this.mouseStartPos.y);
+      this.bgrd.setWidth(dims.width);
+      this.bgrd.setHeight(dims.height);
+      this.bgrd.setPosition(dims);
     }, () => { }, false);
   }
 }
