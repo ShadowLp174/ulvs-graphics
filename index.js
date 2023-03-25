@@ -3541,6 +3541,7 @@ class SVGEngine {
     document.body.appendChild(this.element);
 
     this.scale = 1;
+    this.outline = null;
 
     // separated container for connector elements so they stay on top
     /*this.connectorContainer = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -3604,6 +3605,94 @@ class SVGEngine {
   }
   setNodeRegistry(r) {
     this.registry = r;
+  }
+
+  create(elem) {
+    return document.createElementNS("http://www.w3.org/2000/svg", elem);
+  }
+  get outlineFilter() {
+    if (this.outline) return this.outline;
+    const filter = this.create("filter");
+    filter.id = "OVSOutline" + uid();
+    filter.setAttribute("x", "-50%");
+    filter.setAttribute("y", "-50%");
+    filter.setAttribute("width", "200%");
+    filter.setAttribute("height", "200%");
+    this.element.appendChild(filter);
+    this.outline = filter.id;
+
+    const outCol = this.create("feFlood");
+    outCol.setAttribute("flood-color", "white");
+    outCol.setAttribute("result", "outside-color");
+    filter.appendChild(outCol);
+
+    const morph1 = this.create("feMorphology");
+    morph1.setAttribute("in", "SourceAlpha");
+    morph1.setAttribute("operator", "dilate");
+    morph1.setAttribute("radius", "1");
+    filter.appendChild(morph1);
+
+    const com1 = this.create("feComposite");
+    com1.setAttribute("in", "outside-color");
+    com1.setAttribute("operator", "in");
+    com1.setAttribute("result", "outside-stroke");
+    filter.appendChild(com1);
+
+    const inCol = this.create("feFlood");
+    inCol.setAttribute("flood-color", "white");
+    inCol.setAttribute("result", "inside-color");
+    filter.appendChild(inCol);
+
+    const com2 = this.create("feComposite");
+    com2.setAttribute("in2", "SourceAlpha");
+    com2.setAttribute("operator", "in");
+    com2.setAttribute("result", "inside-stroke");
+    filter.appendChild(com2);
+
+    const morph2 = this.create("feMorphology");
+    morph2.setAttribute("in", "SourceAlpha");
+    morph2.setAttribute("radius", "2");
+    filter.appendChild(morph2);
+
+    const com3 = this.create("feComposite");
+    com3.setAttribute("in", "SourceGraphic");
+    com3.setAttribute("operator", "in");
+    com3.setAttribute("result", "fill-area");
+    filter.appendChild(com3);
+
+    const merge = this.create("feMerge");
+    filter.appendChild(merge);
+
+    const m1 = this.create("feMergeNode");
+    m1.setAttribute("in", "outside-stroke");
+    merge.appendChild(m1);
+
+    const m2 = this.create("feMergeNode");
+    m2.setAttribute("in", "inside-stroke");
+    merge.appendChild(m2);
+
+    const m3 = this.create("feMergeNode");
+    m3.setAttribute("in", "fill-area");
+    merge.appendChild(m3);
+
+    return this.outline;
+    /*<filter id="inset" x="-50%" y="-50%" width="200%" height="200%">
+      <feFlood flood-color="white" result="outside-color"></feFlood>
+      <feMorphology in="SourceAlpha" operator="dilate" radius="1"></feMorphology>
+      <feComposite in="outside-color" operator="in" result="outside-stroke"></feComposite>
+
+      <feFlood flood-color="white" result="inside-color"></feFlood>
+      <feComposite in2="SourceAlpha" operator="in" result="inside-stroke"></feComposite>
+
+      <feMorphology in="SourceAlpha" radius="2"></feMorphology>
+      <feComposite in="SourceGraphic" operator="in" result="fill-area"></feComposite>
+
+      <feMerge>
+        <feMergeNode in="outside-stroke"></feMergeNode>
+        <feMergeNode in="inside-stroke"></feMergeNode>
+        <feMergeNode in="fill-area"></feMergeNode>
+      </feMerge>
+    </filter>*/
   }
 
   addUI(interf) {
