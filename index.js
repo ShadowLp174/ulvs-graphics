@@ -3676,23 +3676,6 @@ class SVGEngine {
     merge.appendChild(m3);
 
     return this.outline;
-    /*<filter id="inset" x="-50%" y="-50%" width="200%" height="200%">
-      <feFlood flood-color="white" result="outside-color"></feFlood>
-      <feMorphology in="SourceAlpha" operator="dilate" radius="1"></feMorphology>
-      <feComposite in="outside-color" operator="in" result="outside-stroke"></feComposite>
-
-      <feFlood flood-color="white" result="inside-color"></feFlood>
-      <feComposite in2="SourceAlpha" operator="in" result="inside-stroke"></feComposite>
-
-      <feMorphology in="SourceAlpha" radius="2"></feMorphology>
-      <feComposite in="SourceGraphic" operator="in" result="fill-area"></feComposite>
-
-      <feMerge>
-        <feMergeNode in="outside-stroke"></feMergeNode>
-        <feMergeNode in="inside-stroke"></feMergeNode>
-        <feMergeNode in="fill-area"></feMergeNode>
-      </feMerge>
-    </filter>*/
   }
 
   addUI(interf) {

@@ -10,6 +10,12 @@
     <meta name="og:title" content="OpenVS Graphics Test" />
   </head>
   <body style="padding: 0; margin: 0">
+    <noscript>
+      <p>
+        ULVS requires JavaScript to be enabled due to everything being handled by JS.
+        Please enable it in your browser's settings to continue :)
+      </p>
+    </noscript>
     <script src="<?php $link = "./index.js"; echo $link . "?q=" . filemtime($link);?>"></script>
     <script>
       function require(url){
