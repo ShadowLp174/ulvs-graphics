@@ -78,9 +78,9 @@ class Component {
     }*/
     this.bbox = this.container.getBBox();
     // only apply the viewBox attribute when the element is rendered
-    if (this.container.parentElement) this.container.setAttribute("viewBox", "0 0 " + this.bbox.width + " " + this.bbox.height)
     this.container.setAttribute("width", this.bbox.width * this.scale);
     this.container.setAttribute("height", this.bbox.height * this.scale);
+    if (this.container.parentElement) this.container.setAttribute("viewBox", "0 0 " + this.bbox.width + " " + this.bbox.height)
     this.container.setAttribute("preserveAspectRatio", "xMinYMin slice");
 
     this.container.setAttribute("x", this.x);
@@ -3378,7 +3378,7 @@ class RasterBackground {
         x: e.clientX,
         y: e.clientY
       };
-    }, () => { }, (e) => {
+    }, () => { }, (_e) => {
       // mouseup
       this.dragging = false;
       this.mouseStartPos = { x: 0, y: 0 };
@@ -3495,16 +3495,15 @@ class SelectionPlugin extends OpenVSPlugin {
       if (e.target != this.engine.background.bg.elem) return;
       if (e.button != 0) return;
       this.renderContainer = this.engine.element;
-      this.moveToTop();
       this.selecting = true;
       this.mouseStartPos = {
         x: e.clientX,
         y: e.clientY
       };
-      console.log(this.mouseStartPos);
       this.bgrd.setVisible(true);
-      this.bgrd.setPosition({ x: this.mouseStartPos.x, y: this.mouseStartPos.y })
-    }, () => { }, (e) => {
+      this.setPosition({ x: this.mouseStartPos.x, y: this.mouseStartPos.y })
+      this.moveToTop();
+    }, () => { }, (_e) => {
       this.selecting = false;
       this.mouseStartPos = { x: 0, y: 0 };
       this.bgrd.setVisible(false);
@@ -3519,7 +3518,7 @@ class SelectionPlugin extends OpenVSPlugin {
       const dims = this.computeDimensions(currPosX - this.mouseStartPos.x, currPosY - this.mouseStartPos.y);
       this.bgrd.setWidth(dims.width);
       this.bgrd.setHeight(dims.height);
-      this.bgrd.setPosition(dims);
+      this.setPosition(dims);
     }, () => { }, false);
   }
 }
