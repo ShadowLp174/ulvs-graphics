@@ -78,8 +78,12 @@ class Component {
     }*/
     this.bbox = this.container.getBBox();
     // only apply the viewBox attribute when the element is rendered
-    this.container.setAttribute("width", this.bbox.width * this.scale);
-    this.container.setAttribute("height", this.bbox.height * this.scale);
+    let w = this.bbox.width * this.scale;
+    let h = this.bbox.height * this.scale;
+    this.container.setAttribute("width", w);
+    this.container.setAttribute("height", h);
+    if (this.container.getAttribute("width") == 0) this.container.removeAttribute("width");
+    if (this.container.getAttribute("height") == 0) this.container.removeAttribute("height");
     if (this.container.parentElement) this.container.setAttribute("viewBox", "0 0 " + this.bbox.width + " " + this.bbox.height)
     this.container.setAttribute("preserveAspectRatio", "xMinYMin slice");
 
@@ -355,6 +359,8 @@ class Viewport {
     if (this.container.parentElement) this.container.setAttribute("viewBox", "0 0 " + this.bbox.width + " " + this.bbox.height)
     this.container.setAttribute("width", this.bbox.width * this.scale);
     this.container.setAttribute("height", this.bbox.height * this.scale);
+    if (this.container.getAttribute("width") == 0) this.container.removeAttribute("width");
+    if (this.container.getAttribute("height") == 0) this.container.removeAttribute("height");
     this.container.setAttribute("preserveAspectRatio", "x" + this.vxa + "Y" + this.vya + " slice");
 
     this.container.setAttribute("x", this.x);
@@ -2882,6 +2888,8 @@ class Rectangle {
     rect.setAttribute("y", yOffset);
     rect.setAttribute("width", this.width);
     rect.setAttribute("height", this.height + this.radius);
+    if (rect.getAttribute("width") == 0) rect.removeAttribute("width");
+    if (rect.getAttribute("height") == 0) rect.removeAttribute("height");
     rect.setAttribute("rx", this.radius);
     rect.setAttribute("ry", this.radius);
     path.appendChild(rect);
