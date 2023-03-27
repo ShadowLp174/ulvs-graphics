@@ -3348,6 +3348,7 @@ class RasterBackground {
       y: 0
     };
     this.dragging = false;
+    this.toggleDragging = false;
 
     return this;
   }
@@ -3372,17 +3373,14 @@ class RasterBackground {
     this.interactions.cancelCtxMenu(this.container.children[0]);
     this.interactions.initListeners(this.container, (e) => {
       // mousedown
+      if (this.toggleDragging) return;
       if (e.button || e.button == 0) if (e.button != 2) return;
       this.dragging = true;
       this.mouseStartPos = {
         x: e.clientX,
         y: e.clientY
       };
-    }, () => { }, (_e) => {
-      // mouseup
-      this.dragging = false;
-      this.mouseStartPos = { x: 0, y: 0 };
-    }, false);
+    }, () => { }, (_e) => { }, false);
     this.interactions.initListeners(window, () => { }, (e) => {
       // mousemove on windows to prevent glitching when noving mouse over other elements
       if (!this.dragging) return;
@@ -3391,7 +3389,34 @@ class RasterBackground {
       this.bgPos.x += xDiff;
       this.bgPos.y += yDiff;
       this.pan(xDiff, yDiff, e.movementX, e.movementY);
-    }, () => { }, false)
+    }, () => {
+      // mouseup
+      this.dragging = false;
+      this.mouseStartPos = { x: 0, y: 0 };
+    }, false)
+
+    // middle click panning
+    this.interactions.initListeners(this.engine.body.container, (e) => {
+      if (e.button !== 1) return;
+      /*this.renderContainer = this.engine.element;
+      this.toggleDragging = 1 - this.toggleDragging; // actually toggle the value
+      this.mouseStartPos = {
+        x: e.clientX,
+        y: e.clientY
+      };*/
+      this.dragging = true;
+      this.mouseStartPos = {
+        x: e.clientX,
+        y: e.clientY
+      };
+    }, (e) => {
+      /*if (!this.toggleDragging) return;
+      let xDiff = e.clientX - this.mouseStartPos.x;
+      let yDiff = e.clientY - this.mouseStartPos.y;
+      this.bgPos.x += xDiff;
+      this.bgPos.y += yDiff;
+      this.pan(xDiff, yDiff, e.movementX, e.movementY);*/
+    }, () => {}, false);
   }
   createDots() {
     this.distance = 35; //this.baseDist * this.zoom;
