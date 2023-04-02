@@ -10,6 +10,12 @@ const nodeMap = {
     branches: true,
     branchCount: 2
   },
+  "OpenVS-Base-Loop-While": {
+    script: "while ($in) {$branch1} $branch0",
+    input: [ "in" ],
+    branches: true,
+    branchCount: 2
+  },
   "Connector-Branch-Split": { // TODO: implement priorities
     script: function(data) {
       let s = "";

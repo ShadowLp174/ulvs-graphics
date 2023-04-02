@@ -5,4 +5,6 @@ function OVSBIsMobile() {
 (function() {
 if (OVSBIsMobile()) {
 console.log(OVSBIsMobile());} else {
-if (OVSBIsMobile()) {} else {}}})()
+if (OVSBIsMobile()) {
+while (OVSBIsMobile()) {
+if (OVSBIsMobile()) {} else {}} } else {}}})()

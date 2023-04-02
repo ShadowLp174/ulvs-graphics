@@ -1097,7 +1097,7 @@ class InputSocketComponent extends Component {
     if (!this.uInput) return;
     if (!this.box) return;
     if (this.type == InputSocketComponent.Type.BOOLEAN) {
-      this.node.reset();
+      if (this.node.reset) this.node.reset();
     }
     this.dataConstant = false;
     this.box.container.style.display = "none";
@@ -1876,6 +1876,7 @@ class ConditionNode extends Node {
     this.addInputSocket(InputSocketComponent.Type.BOOLEAN, "Condition", type);
 
     this.forceBranch = true;
+    this.internalBranch = true;
 
     this.state = null;
 
@@ -1893,6 +1894,24 @@ class ConditionNode extends Node {
     this.labels[1].setColor("white");
     this.plugs[0].setOpacity(1);
     this.plugs[1].setOpacity(1);
+  }
+}
+class WhileLoopNode extends Node {
+  constructor(x, y, scale, svgEngine, type="") {
+    super(x, y, scale, svgEngine);
+
+    this.setId("OpenVS-Base-Loop-While");
+    this.setName("While");
+    this.setClass(Node.Class.BASIC);
+
+    this.addSocket();
+    this.addPlug("", type);
+    this.addPlug("Body", type);
+
+    this.addInputSocket(InputSocketComponent.Type.BOOLEAN, "Condition");
+
+    this.forceBranch = true;
+    this.internalBranch = true;
   }
 }
 class VariableWriteNode extends Node {
@@ -3894,7 +3913,7 @@ class SVGEngine {
         if (connected.length == 0) return sub.push(connected);
         sub.push(follow([connected.connectedTo.node]));
       });
-      if (n.nodeIdentifier != "OpenVS-Base-Basic-Condition") {
+      if (!n.internalBranch) {
         f.push({
           id: "Connector-Branch-Split",
           branchCount: sub.length,
@@ -4447,6 +4466,11 @@ reg.addNode({
   class: Node.Class.BASIC,
   name: "Read Variable"
 });
+reg.addNode({
+  nodeClass: WhileLoopNode,
+  class: Node.Class.BASIC,
+  name: "While Loop"
+});
 
 const shelf = new UiBlockShelf(reg);
 engine.addUI(shelf);
@@ -4474,7 +4498,7 @@ window.addEventListener("mousewheel", (e) => {
   }*/
 });
 
-const program = '{"flows":[[{"x":56,"y":56,"scale":1,"flowPlugs":[[{"connectorId":"lf8j514895ccyxorw1q","conTo":"lf8j5135lekpxyf5hao","targetPort":0}]],"identifier":"OpenVS-Base-Event-Start","node":"StartEventNode","uid":"lf8j513y0y38vjvvlyk"},{"x":375,"y":124,"scale":1,"flowPlugs":[[{"connectorId":"lf8j51498n3zllr7rnx","conTo":"lf8j513rrf4fhix3zzd","targetPort":0}],[{"connectorId":"lf8j5149bpdwajfk7f","conTo":"lf8j5139tt5k3bvzmad","targetPort":0}]],"identifier":"OpenVS-Base-Basic-Condition","node":"ConditionNode","uid":"lf8j5135lekpxyf5hao"},{"x":100,"y":100,"scale":1,"flowPlugs":[[]],"identifier":"OpenVS-Base-Console-Log","node":"ConsoleLogNode","uid":"lf8j513rrf4fhix3zzd"},{"x":704,"y":125,"scale":1,"flowPlugs":[[],[]],"identifier":"OpenVS-Base-Basic-Condition","node":"ConditionNode","uid":"lf8j5139tt5k3bvzmad"}]],"additional":[{"x":55,"y":224,"scale":1,"dataPlugs":[[{"conTo":"lf8j5135lekpxyf5hao","targetPort":0,"connectorId":"lf8j514axb4irw0h43"},{"conTo":"lf8j5139tt5k3bvzmad","targetPort":0,"connectorId":"lf8j514bqw5cp9zh88"},{"conTo":"lf8j513rrf4fhix3zzd","targetPort":0,"connectorId":"lf8j514cpt1rropukz"}]],"identifier":"OpenVS-Base-DInfo-Mobile","node":"IsMobileNode","uid":"lf8j513w3u5z42ai32d"}]}';
+const program = '{"flows":[[{"x":56,"y":56,"scale":1,"flowPlugs":[[]],"identifier":"OpenVS-Base-Event-Start","node":"StartEventNode","uid":"lfzek7nqbner9zzlelm"}],[{"x":292,"y":327,"scale":1,"flowPlugs":[[]],"identifier":"OpenVS-Base-Event-Start","node":"StartEventNode","uid":"lfzek7o21or7ngng3x"}],[{"x":292,"y":327,"scale":1,"flowPlugs":[[{"connectorId":"lfzek7pfcee54lkp25d","conTo":"lfzek7o7e6ut8y5z8xe","targetPort":0}]],"identifier":"OpenVS-Base-Event-Start","node":"StartEventNode","uid":"lfzek7o4jkkr5nnxth"},{"x":611,"y":395,"scale":1,"flowPlugs":[[{"connectorId":"lfzek7piu5dvls0z6t","conTo":"lfzek7oor3z716aj4di","targetPort":0}],[{"connectorId":"lfzek7pk70c2dszlgnw","conTo":"lfzek7osmwa3a8fdknj","targetPort":0}]],"identifier":"OpenVS-Base-Basic-Condition","node":"ConditionNode","uid":"lfzek7o7e6ut8y5z8xe"},{"x":336,"y":371,"scale":1,"flowPlugs":[[]],"identifier":"OpenVS-Base-Console-Log","node":"ConsoleLogNode","uid":"lfzek7oor3z716aj4di"},{"x":940,"y":396,"scale":1,"flowPlugs":[[{"connectorId":"lfzek7pmkutx5ras9b","conTo":"lfzek7oxc5tmrgrkj0f","targetPort":0}],[]],"identifier":"OpenVS-Base-Basic-Condition","node":"ConditionNode","uid":"lfzek7osmwa3a8fdknj"},{"x":854,"y":585,"scale":1,"flowPlugs":[[],[{"connectorId":"lfzekezv3atkkynyic8","conTo":"lfzek7mlpgv03i8ok3k","targetPort":0}]],"identifier":"OpenVS-Base-Loop-While","node":"WhileLoopNode","uid":"lfzek7oxc5tmrgrkj0f"},{"x":704,"y":125,"scale":1,"flowPlugs":[[],[]],"identifier":"OpenVS-Base-Basic-Condition","node":"ConditionNode","uid":"lfzek7mlpgv03i8ok3k"}]],"additional":[{"x":291,"y":495,"scale":1,"dataPlugs":[[{"conTo":"lfzek7o7e6ut8y5z8xe","targetPort":0,"connectorId":"lfzek7psb56lpjf9xy6"},{"conTo":"lfzek7osmwa3a8fdknj","targetPort":0,"connectorId":"lfzek7pv806psp96h3j"},{"conTo":"lfzek7oor3z716aj4di","targetPort":0,"connectorId":"lfzek7pzdt1tqou12cq"},{"conTo":"lfzek7oxc5tmrgrkj0f","targetPort":0,"connectorId":"lfzek9awh3k7ti4ewfi"},{"conTo":"lfzek7mlpgv03i8ok3k","targetPort":0,"connectorId":"lfzekhsn49lejbf5jko"}]],"identifier":"OpenVS-Base-DInfo-Mobile","node":"IsMobileNode","uid":"lfzek7pnwpwr7urca89"},{"x":291,"y":495,"scale":1,"dataPlugs":[[{"conTo":"lfzek7o7e6ut8y5z8xe","targetPort":0,"connectorId":"lfzek7psb56lpjf9xy6"},{"conTo":"lfzek7osmwa3a8fdknj","targetPort":0,"connectorId":"lfzek7pv806psp96h3j"},{"conTo":"lfzek7oor3z716aj4di","targetPort":0,"connectorId":"lfzek7pzdt1tqou12cq"},{"conTo":"lfzek7oxc5tmrgrkj0f","targetPort":0,"connectorId":"lfzek9awh3k7ti4ewfi"},{"conTo":"lfzek7mlpgv03i8ok3k","targetPort":0,"connectorId":"lfzekhsn49lejbf5jko"}]],"identifier":"OpenVS-Base-DInfo-Mobile","node":"IsMobileNode","uid":"lfzek7pnwpwr7urca89"}]}';
 
 engine.importProgram(JSON.parse(program));
 

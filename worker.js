@@ -36,7 +36,7 @@ function require(url){
 }
 ///- END REQUIRE FN
 
-const compile = require("compiler.js");
+const compile = require("compiler.js?cid=1680441470236");
 
 onmessage = (e) => {
   postMessage({ script: compile(e.data), spec: e.data, done: true });
