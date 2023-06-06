@@ -1942,7 +1942,7 @@ class VariableReadNode extends Node { // TODO: implement type selection
     const name = this.addInputSocket(InputSocketComponent.Type.STRING, "Name");
     name.onValueChange((e) => {
       const input = svgEngine.getVariable(e.value);
-      this.value.setType(input.type || OutputPlugComponent.Type.ANY);
+      this.value.setType(input.type || OutputPlugComponent.Type.STRING);
     });
     this.value = this.addOutputPlug(OutputPlugComponent.Type.ANY, "Value", type); // TODO: implement variable registry registry
   }
@@ -3740,6 +3740,9 @@ class SVGEngine {
     this.variables.push(name);
     return true;
   }
+  getVariable() {
+    return {}; // TODO:
+  }
 
   exportProgram() {
     const mapFlow = (start) => {
@@ -3875,6 +3878,7 @@ class SVGEngine {
     }
     let cons = window.openVS.connectors.slice();
     cons.forEach(c => c.destroy());
+    this.components = [];
   }
 
   /**
@@ -4498,8 +4502,9 @@ window.addEventListener("mousewheel", (e) => {
   }*/
 });
 
-const program = '{"flows":[[{"x":56,"y":56,"scale":1,"flowPlugs":[[]],"identifier":"OpenVS-Base-Event-Start","node":"StartEventNode","uid":"lfzek7nqbner9zzlelm"}],[{"x":292,"y":327,"scale":1,"flowPlugs":[[]],"identifier":"OpenVS-Base-Event-Start","node":"StartEventNode","uid":"lfzek7o21or7ngng3x"}],[{"x":292,"y":327,"scale":1,"flowPlugs":[[{"connectorId":"lfzek7pfcee54lkp25d","conTo":"lfzek7o7e6ut8y5z8xe","targetPort":0}]],"identifier":"OpenVS-Base-Event-Start","node":"StartEventNode","uid":"lfzek7o4jkkr5nnxth"},{"x":611,"y":395,"scale":1,"flowPlugs":[[{"connectorId":"lfzek7piu5dvls0z6t","conTo":"lfzek7oor3z716aj4di","targetPort":0}],[{"connectorId":"lfzek7pk70c2dszlgnw","conTo":"lfzek7osmwa3a8fdknj","targetPort":0}]],"identifier":"OpenVS-Base-Basic-Condition","node":"ConditionNode","uid":"lfzek7o7e6ut8y5z8xe"},{"x":336,"y":371,"scale":1,"flowPlugs":[[]],"identifier":"OpenVS-Base-Console-Log","node":"ConsoleLogNode","uid":"lfzek7oor3z716aj4di"},{"x":940,"y":396,"scale":1,"flowPlugs":[[{"connectorId":"lfzek7pmkutx5ras9b","conTo":"lfzek7oxc5tmrgrkj0f","targetPort":0}],[]],"identifier":"OpenVS-Base-Basic-Condition","node":"ConditionNode","uid":"lfzek7osmwa3a8fdknj"},{"x":854,"y":585,"scale":1,"flowPlugs":[[],[{"connectorId":"lfzekezv3atkkynyic8","conTo":"lfzek7mlpgv03i8ok3k","targetPort":0}]],"identifier":"OpenVS-Base-Loop-While","node":"WhileLoopNode","uid":"lfzek7oxc5tmrgrkj0f"},{"x":704,"y":125,"scale":1,"flowPlugs":[[],[]],"identifier":"OpenVS-Base-Basic-Condition","node":"ConditionNode","uid":"lfzek7mlpgv03i8ok3k"}]],"additional":[{"x":291,"y":495,"scale":1,"dataPlugs":[[{"conTo":"lfzek7o7e6ut8y5z8xe","targetPort":0,"connectorId":"lfzek7psb56lpjf9xy6"},{"conTo":"lfzek7osmwa3a8fdknj","targetPort":0,"connectorId":"lfzek7pv806psp96h3j"},{"conTo":"lfzek7oor3z716aj4di","targetPort":0,"connectorId":"lfzek7pzdt1tqou12cq"},{"conTo":"lfzek7oxc5tmrgrkj0f","targetPort":0,"connectorId":"lfzek9awh3k7ti4ewfi"},{"conTo":"lfzek7mlpgv03i8ok3k","targetPort":0,"connectorId":"lfzekhsn49lejbf5jko"}]],"identifier":"OpenVS-Base-DInfo-Mobile","node":"IsMobileNode","uid":"lfzek7pnwpwr7urca89"},{"x":291,"y":495,"scale":1,"dataPlugs":[[{"conTo":"lfzek7o7e6ut8y5z8xe","targetPort":0,"connectorId":"lfzek7psb56lpjf9xy6"},{"conTo":"lfzek7osmwa3a8fdknj","targetPort":0,"connectorId":"lfzek7pv806psp96h3j"},{"conTo":"lfzek7oor3z716aj4di","targetPort":0,"connectorId":"lfzek7pzdt1tqou12cq"},{"conTo":"lfzek7oxc5tmrgrkj0f","targetPort":0,"connectorId":"lfzek9awh3k7ti4ewfi"},{"conTo":"lfzek7mlpgv03i8ok3k","targetPort":0,"connectorId":"lfzekhsn49lejbf5jko"}]],"identifier":"OpenVS-Base-DInfo-Mobile","node":"IsMobileNode","uid":"lfzek7pnwpwr7urca89"}]}';
+const program = "{\"flows\":[[{\"x\":29,\"y\":235,\"scale\":1,\"flowPlugs\":[[{\"connectorId\":\"lijxo5xl3hz3h1oim0r\",\"conTo\":\"lijxnef7bbjr7ugte\",\"targetPort\":0}]],\"identifier\":\"OpenVS-Base-Event-Start\",\"node\":\"StartEventNode\",\"uid\":\"lijxncv1vqql6oispnf\"},{\"x\":305,\"y\":188,\"scale\":1,\"flowPlugs\":[[{\"connectorId\":\"lijxnvm2gtn72nyyv7c\",\"conTo\":\"lijxnhm8pw9booq4ue9\",\"targetPort\":0}]],\"identifier\":\"OpenVS-Base-Variable-Write\",\"node\":\"VariableWriteNode\",\"uid\":\"lijxnef7bbjr7ugte\"},{\"x\":572,\"y\":286,\"scale\":1,\"flowPlugs\":[[]],\"identifier\":\"OpenVS-Base-Console-Log\",\"node\":\"ConsoleLogNode\",\"uid\":\"lijxnhm8pw9booq4ue9\"}]],\"additional\":[]}";
 
+engine.clearWorkspace();
 engine.importProgram(JSON.parse(program));
 
 engine.addPlugin(new SelectionPlugin());
